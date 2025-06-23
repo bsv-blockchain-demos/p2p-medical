@@ -1,7 +1,6 @@
-
 import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Upload, File, Clear } from 'lucide-react';
+import { Upload, File, X } from 'lucide-react';
 
 interface FileUploadProps {
   files: File[];
@@ -104,7 +103,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ files, onFilesChange }) 
                   }}
                   className="text-red-500 hover:text-red-700 hover:bg-red-50"
                 >
-                  <Clear className="w-4 h-4" />
+                  <X className="w-4 h-4" />
                 </Button>
               </div>
             ))}

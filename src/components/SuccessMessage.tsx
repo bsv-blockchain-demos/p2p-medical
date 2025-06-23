@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Check, Send, Clear, Shield, Clock } from 'lucide-react';
+import { Check, Send, X, Shield, Clock } from 'lucide-react';
 
 interface SuccessMessageProps {
   filesCount: number;
@@ -78,7 +77,7 @@ export const SuccessMessage: React.FC<SuccessMessageProps> = ({
                 className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 py-3 rounded-xl font-medium transition-colors"
                 size="lg"
               >
-                <Clear className="w-5 h-5 mr-2" />
+                <X className="w-5 h-5 mr-2" />
                 Clear All Data & Start Over
               </Button>
             </div>
