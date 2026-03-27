@@ -1,4 +1,5 @@
 import type { Db, Collection } from 'mongodb'
+import { Transaction } from '@bsv/sdk'
 
 interface MedicalTokenDoc {
   txid: string
@@ -26,7 +27,7 @@ interface MedicalTokenDoc {
   updatedAt: Date
 }
 
-const PROTOCOL_PREFIX = 'p2p-medical'
+const PROTOCOL_PREFIX = 'p2p medical'
 
 export class MedicalTokenTopicManager {
   private collection: Collection<MedicalTokenDoc>
@@ -36,9 +37,6 @@ export class MedicalTokenTopicManager {
   }
 
   async processTransaction(txHex: string): Promise<void> {
-    // Decode the transaction and extract PushDrop outputs
-    // In a real implementation, this would use @bsv/sdk Transaction.fromHex
-    // and PushDrop.decode to parse each output
     const outputs = this.parseOutputs(txHex)
     const inputs = this.parseInputs(txHex)
 
@@ -118,15 +116,66 @@ export class MedicalTokenTopicManager {
   }
 
   private parseOutputs(txHex: string): Array<{ txid: string; vout: number; fields: string[] }> {
-    // TODO: Real implementation would use @bsv/sdk Transaction.fromHex()
-    // and PushDrop.decode() on each output to extract fields.
-    // For now, this is a placeholder that the overlay-express integration
-    // would handle automatically.
-    return []
+    try {
+      const tx = Transaction.fromHex(txHex)
+      const txid = tx.id('hex')
+      const results: Array<{ txid: string; vout: number; fields: string[] }> = []
+      const decoder = new TextDecoder()
+
+      for (let vout = 0; vout < tx.outputs.length; vout++) {
+        const script = tx.outputs[vout].lockingScript
+        if (!script) continue
+
+        const chunks = script.chunks
+
+        // Collect data pushes before the first OP_DROP (0x75) or OP_2DROP (0x6d)
+        const dataPushes: Uint8Array[] = []
+        for (const chunk of chunks) {
+          if (chunk.op === 0x75 || chunk.op === 0x6d) break
+          if (chunk.data && chunk.data.length > 0) {
+            dataPushes.push(
+              chunk.data instanceof Uint8Array
+                ? chunk.data
+                : new Uint8Array(chunk.data),
+            )
+          }
+        }
+
+        // PushDrop with signature: 9 fields + 1 signature = 10 pushes minimum
+        // Without signature: 9 fields minimum
+        if (dataPushes.length < 9) continue
+
+        // Decode first 9 fields as UTF-8 strings
+        const fields = dataPushes.slice(0, 9).map((d) => decoder.decode(d))
+
+        // Check protocol prefix
+        if (fields[0] !== PROTOCOL_PREFIX) continue
+
+        results.push({ txid, vout, fields })
+      }
+
+      return results
+    } catch (err) {
+      console.error('Failed to parse outputs:', err)
+      return []
+    }
   }
 
   private parseInputs(txHex: string): Array<{ prevTxid: string; prevVout: number; spendTxid: string }> {
-    // TODO: Same as above — real implementation parses tx inputs
-    return []
+    try {
+      const tx = Transaction.fromHex(txHex)
+      const spendTxid = tx.id('hex')
+
+      return tx.inputs
+        .filter((input) => input.sourceTXID)
+        .map((input) => ({
+          prevTxid: input.sourceTXID!,
+          prevVout: input.sourceOutputIndex ?? 0,
+          spendTxid,
+        }))
+    } catch (err) {
+      console.error('Failed to parse inputs:', err)
+      return []
+    }
   }
 }

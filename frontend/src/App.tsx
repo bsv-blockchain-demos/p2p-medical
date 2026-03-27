@@ -2,10 +2,12 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { WalletProvider, useWallet } from '@/context/WalletContext'
 import LandingPage from '@/pages/LandingPage'
 import MainApp from '@/pages/MainApp'
+import RegisterProfile from '@/components/app/RegisterProfile'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { connected } = useWallet()
+  const { connected, registered } = useWallet()
   if (!connected) return <Navigate to="/" replace />
+  if (!registered) return <RegisterProfile />
   return <>{children}</>
 }
 

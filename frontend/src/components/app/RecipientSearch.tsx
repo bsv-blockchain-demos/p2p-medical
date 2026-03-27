@@ -6,13 +6,13 @@ import { Card, CardContent } from '@/components/ui/card'
 import { searchIdentity, isValidPublicKey, type IdentityResult } from '@/services/identity'
 import { truncateKey } from '@/lib/utils'
 
-interface DoctorSearchProps {
+interface RecipientSearchProps {
   onSelect: (key: string, name?: string) => void
   selectedKey: string | null
   selectedName: string | null
 }
 
-export default function DoctorSearch({ onSelect, selectedKey, selectedName }: DoctorSearchProps) {
+export default function RecipientSearch({ onSelect, selectedKey, selectedName }: RecipientSearchProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [pasteKey, setPasteKey] = useState('')
   const [results, setResults] = useState<IdentityResult[]>([])
@@ -47,15 +47,15 @@ export default function DoctorSearch({ onSelect, selectedKey, selectedName }: Do
   return (
     <Card>
       <CardContent className="pt-6 space-y-4">
-        <h3 className="font-semibold">Find Doctor</h3>
+        <h3 className="font-semibold font-body">Find Recipient</h3>
 
         {selectedKey ? (
-          <div className="flex items-center justify-between bg-primary/5 rounded-lg p-3">
+          <div className="flex items-center justify-between bg-violet-500/5 border border-violet-500/20 rounded-lg p-3">
             <div>
               <span className="font-medium">
-                {selectedName || 'Doctor'}
+                {selectedName || 'Recipient'}
               </span>
-              <span className="text-xs font-mono text-muted-foreground ml-2">
+              <span className="text-xs font-mono text-violet-500 dark:text-violet-400/70 ml-2">
                 ({truncateKey(selectedKey)})
               </span>
             </div>
@@ -82,11 +82,14 @@ export default function DoctorSearch({ onSelect, selectedKey, selectedName }: Do
                 {results.map((r) => (
                   <button
                     key={r.publicKey}
-                    className="w-full text-left p-3 rounded-lg border hover:bg-accent transition-colors"
+                    className="w-full text-left p-3 rounded-lg border dark:border-slate-800/60 border-slate-200 hover:border-violet-500/30 dark:hover:bg-slate-800/40 hover:bg-violet-50 hover:shadow-violet-sm transition-all duration-200"
                     onClick={() => onSelect(r.publicKey, r.name)}
                   >
                     <span className="font-medium">{r.name}</span>
-                    <span className="text-xs font-mono text-muted-foreground block">
+                    {r.role && (
+                      <span className="text-xs text-violet-500/50 dark:text-violet-400/50 ml-1.5">{r.role}</span>
+                    )}
+                    <span className="text-xs font-mono text-violet-500 dark:text-violet-400/70 block">
                       {truncateKey(r.publicKey)}
                     </span>
                   </button>
@@ -95,14 +98,14 @@ export default function DoctorSearch({ onSelect, selectedKey, selectedName }: Do
             )}
 
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <div className="flex-1 h-px bg-border" />
+              <div className="flex-1 h-px dark:bg-slate-800 bg-slate-200" />
               OR
-              <div className="flex-1 h-px bg-border" />
+              <div className="flex-1 h-px dark:bg-slate-800 bg-slate-200" />
             </div>
 
             <div className="flex gap-2">
               <Input
-                placeholder="Paste doctor's public key"
+                placeholder="Paste recipient's public key"
                 value={pasteKey}
                 onChange={(e) => setPasteKey(e.target.value)}
                 className="font-mono text-xs"

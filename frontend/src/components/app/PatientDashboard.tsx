@@ -1,12 +1,12 @@
 import { useState, useCallback } from 'react'
 import { useWallet } from '@/context/WalletContext'
-import DoctorSearch from './DoctorSearch'
+import RecipientSearch from './RecipientSearch'
 import ImageUpload from './ImageUpload'
 import UploadProgress from './UploadProgress'
 import { encryptForRecipient, hashContent } from '@/services/crypto'
 import { uploadToUHRP } from '@/services/storage'
 import { mintUploadToken, type MedicalTokenFields } from '@/services/tokens'
-import { notifyDoctor } from '@/services/messagebox'
+import { notifyRecipient } from '@/services/messagebox'
 import { getIdentityKey } from '@/services/wallet'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -38,8 +38,8 @@ export interface FileMetadata {
 
 export default function PatientDashboard() {
   const { identityKey } = useWallet()
-  const [doctorKey, setDoctorKey] = useState<string | null>(null)
-  const [doctorName, setDoctorName] = useState<string | null>(null)
+  const [recipientKey, setRecipientKey] = useState<string | null>(null)
+  const [recipientName, setRecipientName] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [metadata, setMetadata] = useState<FileMetadata>({
     fileType: 'xray',
@@ -52,9 +52,9 @@ export default function PatientDashboard() {
   const [result, setResult] = useState<UploadResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const handleSelectDoctor = useCallback((key: string, name?: string) => {
-    setDoctorKey(key)
-    setDoctorName(name || null)
+  const handleSelectRecipient = useCallback((key: string, name?: string) => {
+    setRecipientKey(key)
+    setRecipientName(name || null)
   }, [])
 
   const handleFileSelect = useCallback((f: File, meta: FileMetadata) => {
@@ -63,7 +63,7 @@ export default function PatientDashboard() {
   }, [])
 
   const handleSend = async () => {
-    if (!file || !doctorKey || !identityKey) return
+    if (!file || !recipientKey || !identityKey) return
 
     setStep('encrypting')
     setError(null)
@@ -73,15 +73,17 @@ export default function PatientDashboard() {
       // 1. Read file as bytes
       const fileBytes = new Uint8Array(await file.arrayBuffer())
 
-      // 2. Hash plaintext for integrity
-      const contentHash = await hashContent(fileBytes)
-      const keyID = contentHash // Use content hash as unique key ID
+      // 2. Generate unique keyID for encryption key derivation
+      const keyID = crypto.randomUUID()
 
-      // 3. Encrypt for doctor
+      // 3. Encrypt for recipient
       setStep('encrypting')
-      const ciphertext = await encryptForRecipient(fileBytes, doctorKey, keyID)
+      const ciphertext = await encryptForRecipient(fileBytes, recipientKey, keyID)
 
-      // 4. Upload encrypted file to UHRP
+      // 4. Hash ciphertext for integrity verification (recipient hashes downloaded ciphertext)
+      const contentHash = await hashContent(ciphertext)
+
+      // 5. Upload encrypted file to UHRP
       setStep('uploading')
       const uhrpUrl = await uploadToUHRP(ciphertext, 'application/octet-stream')
 
@@ -93,7 +95,7 @@ export default function PatientDashboard() {
         contentHash,
         uhrpUrl,
         senderKey,
-        recipientKey: doctorKey,
+        recipientKey: recipientKey,
         metadata: {
           fileType: metadata.fileType,
           bodyPart: metadata.bodyPart || undefined,
@@ -105,10 +107,10 @@ export default function PatientDashboard() {
       }
       const mintResult = await mintUploadToken(tokenFields)
 
-      // 6. Notify doctor via MessageBox
+      // 6. Notify recipient via MessageBox
       setStep('notifying')
       const txid = mintResult.txid || ''
-      await notifyDoctor(doctorKey, {
+      await notifyRecipient(recipientKey, {
         uhrpUrl,
         contentHash,
         tokenTxid: txid,
@@ -120,7 +122,7 @@ export default function PatientDashboard() {
       setResult({
         txid,
         uhrpUrl,
-        recipientKey: doctorKey,
+        recipientKey: recipientKey,
         timestamp: Date.now(),
       })
     } catch (err) {
@@ -129,13 +131,13 @@ export default function PatientDashboard() {
     }
   }
 
-  const canSend = !!doctorKey && !!file && step === 'idle'
+  const canSend = !!recipientKey && !!file && step === 'idle'
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold">SHARE MEDICAL IMAGE</h2>
+      <h2 className="text-2xl font-display">Share Medical Image</h2>
 
-      <DoctorSearch onSelect={handleSelectDoctor} selectedKey={doctorKey} selectedName={doctorName} />
+      <RecipientSearch onSelect={handleSelectRecipient} selectedKey={recipientKey} selectedName={recipientName} />
 
       <ImageUpload onFileSelect={handleFileSelect} file={file} metadata={metadata} />
 
@@ -156,25 +158,25 @@ export default function PatientDashboard() {
       )}
 
       {result && (
-        <Card className="border-green-200 bg-green-50">
+        <Card className="border-violet-500/20 bg-violet-500/5">
           <CardHeader>
-            <CardTitle className="text-green-800 text-lg">Success</CardTitle>
+            <CardTitle className="text-violet-500 dark:text-violet-400 text-lg">Success</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <div>
-              <span className="font-medium">Txid:</span>{' '}
-              <span className="font-mono">{result.txid}</span>
+              <span className="font-medium dark:text-slate-400 text-slate-500">Txid:</span>{' '}
+              <span className="font-mono text-violet-500 dark:text-violet-300/70">{result.txid}</span>
             </div>
             <div>
-              <span className="font-medium">UHRP:</span>{' '}
-              <span className="font-mono text-xs">{result.uhrpUrl}</span>
+              <span className="font-medium dark:text-slate-400 text-slate-500">UHRP:</span>{' '}
+              <span className="font-mono text-xs text-violet-500 dark:text-violet-300/70">{result.uhrpUrl}</span>
             </div>
             <div>
-              <span className="font-medium">To:</span>{' '}
-              <span className="font-mono">{doctorName || result.recipientKey}</span>
+              <span className="font-medium dark:text-slate-400 text-slate-500">To:</span>{' '}
+              <span className="font-mono text-violet-500 dark:text-violet-300/70">{recipientName || result.recipientKey}</span>
             </div>
             <div>
-              <span className="font-medium">Time:</span>{' '}
+              <span className="font-medium dark:text-slate-400 text-slate-500">Time:</span>{' '}
               {new Date(result.timestamp).toLocaleString()}
             </div>
           </CardContent>

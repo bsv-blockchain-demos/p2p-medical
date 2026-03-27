@@ -111,15 +111,18 @@ export default function ImageViewer({ token, onBack }: ImageViewerProps) {
               const s = stepStatus(id)
               return (
                 <div key={id} className="flex items-center gap-3 text-sm">
-                  {s === 'done' && <CheckCircle2 className="w-5 h-5 text-green-600" />}
-                  {s === 'active' && <Loader2 className="w-5 h-5 text-primary animate-spin" />}
-                  {s === 'waiting' && <Circle className="w-5 h-5 text-muted-foreground/30" />}
+                  {s === 'done' && <CheckCircle2 className="w-5 h-5 text-violet-400" />}
+                  {s === 'active' && <Loader2 className="w-5 h-5 text-violet-400 animate-spin" />}
+                  {s === 'waiting' && <Circle className="w-5 h-5 text-slate-600" />}
                   <span>
                     {label}
                     {s === 'done' && id === 'verifying' && hashMatch && (
-                      <span className="text-green-600 ml-1">match</span>
+                      <span className="text-violet-400 ml-1">verified</span>
                     )}
-                    {s === 'done' && <span className="text-muted-foreground ml-2">done</span>}
+                    {s === 'done' && id === 'verifying' && hashMatch === false && (
+                      <span className="text-rose-400 ml-1">mismatch</span>
+                    )}
+                    {s === 'done' && <span className="dark:text-slate-500 text-slate-400 ml-2">done</span>}
                   </span>
                 </div>
               )
@@ -135,7 +138,7 @@ export default function ImageViewer({ token, onBack }: ImageViewerProps) {
             <img
               src={imageUrl}
               alt="Decrypted medical image"
-              className="max-w-full max-h-[500px] rounded-lg shadow-md"
+              className="max-w-full max-h-[500px] rounded-lg ring-1 ring-violet-500/20"
             />
           </CardContent>
         </Card>
@@ -146,34 +149,34 @@ export default function ImageViewer({ token, onBack }: ImageViewerProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">FILE DETAILS</CardTitle>
+              <CardTitle className="text-base font-body font-semibold">File Details</CardTitle>
             </CardHeader>
             <CardContent className="text-sm space-y-1">
-              <p><span className="text-muted-foreground">From:</span> <span className="font-mono">{truncateKey(token.senderKey)}</span></p>
-              <p><span className="text-muted-foreground">Type:</span> {token.metadata.fileType}{token.metadata.bodyPart && `, ${token.metadata.bodyPart}`}</p>
-              <p><span className="text-muted-foreground">Size:</span> {formatFileSize(token.metadata.fileSizeBytes)}</p>
-              <p><span className="text-muted-foreground">Hash:</span> SHA-256 {hashMatch ? '✓' : '✗'}</p>
-              <p><span className="text-muted-foreground">Sent:</span> {formatTimestamp(token.timestamp)}</p>
+              <p><span className="dark:text-slate-500 text-slate-400">From:</span> <span className="font-mono text-violet-500 dark:text-violet-400/70">{truncateKey(token.senderKey)}</span></p>
+              <p><span className="dark:text-slate-500 text-slate-400">Type:</span> {token.metadata.fileType}{token.metadata.bodyPart && `, ${token.metadata.bodyPart}`}</p>
+              <p><span className="dark:text-slate-500 text-slate-400">Size:</span> {formatFileSize(token.metadata.fileSizeBytes)}</p>
+              <p><span className="dark:text-slate-500 text-slate-400">Hash:</span> <span className={hashMatch ? 'text-violet-400' : 'text-rose-400'}>SHA-256 {hashMatch ? 'verified' : 'mismatch'}</span></p>
+              <p><span className="dark:text-slate-500 text-slate-400">Sent:</span> {formatTimestamp(token.timestamp)}</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Shield className="w-4 h-4" />
-                BLOCKCHAIN PROOF
+              <CardTitle className="text-base font-body font-semibold flex items-center gap-2">
+                <Shield className="w-4 h-4 text-violet-400" />
+                Blockchain Proof
               </CardTitle>
             </CardHeader>
             <CardContent className="text-sm space-y-1">
-              <p><span className="text-muted-foreground">Upload Tx:</span> <span className="font-mono text-xs">{truncateKey(token.txid)}</span></p>
+              <p><span className="dark:text-slate-500 text-slate-400">Upload Tx:</span> <span className="font-mono text-xs text-violet-500 dark:text-violet-400/70">{truncateKey(token.txid)}</span></p>
               <p>
-                <span className="text-muted-foreground">Status:</span>{' '}
+                <span className="dark:text-slate-500 text-slate-400">Status:</span>{' '}
                 <Badge variant={receiptTxid ? 'success' : 'secondary'}>
                   {receiptTxid ? 'Viewed' : 'Pending'}
                 </Badge>
               </p>
               {receiptTxid && (
-                <p><span className="text-muted-foreground">Receipt:</span> <span className="font-mono text-xs">{truncateKey(receiptTxid)}</span></p>
+                <p><span className="dark:text-slate-500 text-slate-400">Receipt:</span> <span className="font-mono text-xs text-violet-500 dark:text-violet-400/70">{truncateKey(receiptTxid)}</span></p>
               )}
             </CardContent>
           </Card>
@@ -190,8 +193,8 @@ export default function ImageViewer({ token, onBack }: ImageViewerProps) {
       )}
 
       {error && (
-        <Card className="border-destructive/50 bg-destructive/5">
-          <CardContent className="pt-6 text-sm text-destructive">{error}</CardContent>
+        <Card className="border-rose-500/20 bg-rose-500/5">
+          <CardContent className="pt-6 text-sm text-rose-400">{error}</CardContent>
         </Card>
       )}
     </div>

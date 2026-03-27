@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { WalletClient } from '@bsv/sdk'
 import { connectWallet, isWalletConnected, getIdentityKey } from '@/services/wallet'
+import { fetchProfile, registerIdentity, deleteProfile, type UserProfile } from '@/services/identity'
 
 export type Role = 'patient' | 'doctor'
 
@@ -9,9 +10,13 @@ interface WalletState {
   identityKey: string | null
   connected: boolean
   connecting: boolean
+  registered: boolean
+  registering: boolean
+  profile: UserProfile | null
   role: Role
-  setRole: (role: Role) => void
-  connect: () => Promise<void>
+  connect: () => Promise<boolean>
+  register: (name: string, role: Role) => Promise<void>
+  resetProfile: () => Promise<void>
   error: string | null
 }
 
@@ -20,9 +25,13 @@ const WalletContext = createContext<WalletState>({
   identityKey: null,
   connected: false,
   connecting: false,
+  registered: false,
+  registering: false,
+  profile: null,
   role: 'patient',
-  setRole: () => {},
-  connect: async () => {},
+  connect: async () => false,
+  register: async () => {},
+  resetProfile: async () => {},
   error: null,
 })
 
@@ -31,7 +40,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [identityKey, setIdentityKey] = useState<string | null>(null)
   const [connected, setConnected] = useState(false)
   const [connecting, setConnecting] = useState(false)
-  const [role, setRole] = useState<Role>('patient')
+  const [registered, setRegistered] = useState(false)
+  const [registering, setRegistering] = useState(false)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const connect = useCallback(async () => {
@@ -43,13 +54,52 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       setWallet(w)
       setIdentityKey(key)
       setConnected(true)
+
+      // Check if already registered
+      const existingProfile = await fetchProfile(key)
+      if (existingProfile) {
+        setProfile(existingProfile)
+        setRegistered(true)
+      }
+      return true
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to connect wallet')
       setConnected(false)
+      return false
     } finally {
       setConnecting(false)
     }
   }, [])
+
+  const register = useCallback(async (name: string, role: Role) => {
+    if (!identityKey) throw new Error('Wallet not connected')
+    setRegistering(true)
+    setError(null)
+    try {
+      await registerIdentity(name, role)
+      // Confirm stored in backend
+      const newProfile = await fetchProfile(identityKey)
+      if (newProfile) {
+        setProfile(newProfile)
+        setRegistered(true)
+      } else {
+        throw new Error('Registration succeeded but profile not found')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Registration failed')
+      throw err
+    } finally {
+      setRegistering(false)
+    }
+  }, [identityKey])
+
+  const resetProfile = useCallback(async () => {
+    if (!identityKey) throw new Error('Wallet not connected')
+    await deleteProfile(identityKey)
+    setRegistered(false)
+    setProfile(null)
+    setError(null)
+  }, [identityKey])
 
   useEffect(() => {
     isWalletConnected().then((ok) => {
@@ -57,9 +107,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     })
   }, [connect])
 
+  const role: Role = profile?.role || 'patient'
+
   return (
     <WalletContext.Provider
-      value={{ wallet, identityKey, connected, connecting, role, setRole, connect, error }}
+      value={{ wallet, identityKey, connected, connecting, registered, registering, profile, role, connect, register, resetProfile, error }}
     >
       {children}
     </WalletContext.Provider>

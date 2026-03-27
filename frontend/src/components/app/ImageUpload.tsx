@@ -61,8 +61,10 @@ export default function ImageUpload({ onFileSelect, file }: ImageUploadProps) {
     <Card>
       <CardContent className="pt-6 space-y-4">
         <div
-          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-            dragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50'
+          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all duration-200 ${
+            dragOver
+              ? 'border-violet-500 bg-violet-500/5 glow-violet'
+              : 'dark:border-slate-700 border-slate-300 hover:border-violet-500/30'
           }`}
           onDragOver={(e) => {
             e.preventDefault()
@@ -79,18 +81,18 @@ export default function ImageUpload({ onFileSelect, file }: ImageUploadProps) {
             onChange={handleFileInput}
             className="hidden"
           />
-          <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+          <Upload className="w-8 h-8 dark:text-slate-500 text-slate-400 mx-auto mb-3" />
           {file ? (
             <div>
               <p className="font-medium">{file.name}</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm dark:text-slate-400 text-slate-500">
                 {formatFileSize(file.size)} &middot; {file.type}
               </p>
             </div>
           ) : (
             <div>
               <p className="font-medium">Drag & drop image or click to browse</p>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-sm dark:text-slate-500 text-slate-400 mt-1">
                 JPEG, PNG, DICOM &middot; Max 10MB
               </p>
             </div>

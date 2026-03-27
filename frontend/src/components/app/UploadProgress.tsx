@@ -40,7 +40,7 @@ export default function UploadProgress({ step, error }: UploadProgressProps) {
   return (
     <Card>
       <CardContent className="pt-6">
-        <h3 className="font-semibold mb-4 text-sm">
+        <h3 className="font-semibold mb-4 text-xs tracking-widest uppercase text-violet-500 dark:text-violet-400 font-body">
           {step === 'done' ? 'COMPLETE' : step === 'error' ? 'ERROR' : 'PROGRESS'}
         </h3>
         <div className="space-y-3">
@@ -49,35 +49,37 @@ export default function UploadProgress({ step, error }: UploadProgressProps) {
             return (
               <div key={id} className="flex items-center gap-3 text-sm">
                 {status === 'done' && (
-                  <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                  <CheckCircle2 className="w-5 h-5 text-violet-400 flex-shrink-0" />
                 )}
                 {status === 'active' && (
-                  <Loader2 className="w-5 h-5 text-primary animate-spin flex-shrink-0" />
+                  <Loader2 className="w-5 h-5 text-violet-400 animate-spin flex-shrink-0" />
                 )}
                 {status === 'waiting' && (
-                  <Circle className="w-5 h-5 text-muted-foreground/30 flex-shrink-0" />
+                  <Circle className="w-5 h-5 text-slate-600 flex-shrink-0" />
                 )}
                 {status === 'error' && (
-                  <XCircle className="w-5 h-5 text-destructive flex-shrink-0" />
+                  <XCircle className="w-5 h-5 text-rose-400 flex-shrink-0" />
                 )}
                 <span
                   className={
-                    status === 'waiting'
-                      ? 'text-muted-foreground'
-                      : status === 'error'
-                        ? 'text-destructive'
-                        : ''
+                    status === 'active'
+                      ? 'dark:text-white text-slate-900'
+                      : status === 'done'
+                        ? 'dark:text-slate-300 text-slate-600'
+                        : status === 'waiting'
+                          ? 'text-slate-600'
+                          : 'text-rose-400'
                   }
                 >
                   {label}
                   {status === 'done' && (
-                    <span className="text-muted-foreground ml-2">done</span>
+                    <span className="dark:text-slate-500 text-slate-400 ml-2">done</span>
                   )}
                   {status === 'active' && (
-                    <span className="text-muted-foreground ml-2">in progress</span>
+                    <span className="dark:text-slate-500 text-slate-400 ml-2">in progress</span>
                   )}
                   {status === 'waiting' && (
-                    <span className="text-muted-foreground ml-2">waiting</span>
+                    <span className="dark:text-slate-700 text-slate-300 ml-2">waiting</span>
                   )}
                 </span>
               </div>
@@ -85,7 +87,7 @@ export default function UploadProgress({ step, error }: UploadProgressProps) {
           })}
         </div>
         {error && (
-          <p className="text-sm text-destructive mt-4">{error}</p>
+          <p className="text-sm text-rose-400 mt-4">{error}</p>
         )}
       </CardContent>
     </Card>

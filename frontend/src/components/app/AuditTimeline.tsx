@@ -57,7 +57,7 @@ export default function AuditTimeline() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold">AUDIT LOG</h2>
+      <h2 className="text-2xl font-display">Audit Log</h2>
 
       <div className="flex gap-4">
         <div>
@@ -85,13 +85,13 @@ export default function AuditTimeline() {
 
       {loading && (
         <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">Loading...</CardContent>
+          <CardContent className="py-8 text-center dark:text-slate-500 text-slate-400">Loading...</CardContent>
         </Card>
       )}
 
       {!loading && filtered.length === 0 && (
         <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
+          <CardContent className="py-8 text-center dark:text-slate-500 text-slate-400">
             No audit entries found.
           </CardContent>
         </Card>
@@ -100,14 +100,14 @@ export default function AuditTimeline() {
       {Object.entries(grouped).map(([date, items]) => (
         <Card key={date}>
           <CardContent className="pt-6">
-            <h3 className="text-sm font-semibold text-muted-foreground mb-4">{date}</h3>
+            <h3 className="text-xs font-semibold text-violet-500/60 dark:text-violet-400/60 tracking-widest uppercase mb-4 font-body">{date}</h3>
             <div className="space-y-4">
               {items.map((entry) => (
                 <div
                   key={`${entry.txid}:${entry.vout}`}
-                  className="flex items-start gap-4 pb-4 border-b last:border-0 last:pb-0"
+                  className="flex items-start gap-4 pb-4 border-b dark:border-slate-800/50 border-slate-200 last:border-0 last:pb-0"
                 >
-                  <div className="text-xs text-muted-foreground w-12 flex-shrink-0 pt-0.5">
+                  <div className="text-xs dark:text-slate-500 text-slate-400 w-12 flex-shrink-0 pt-0.5">
                     {new Date(entry.timestamp).toLocaleTimeString('en-US', {
                       hour: '2-digit',
                       minute: '2-digit',
@@ -131,16 +131,16 @@ export default function AuditTimeline() {
                         {entry.status}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm dark:text-slate-500 text-slate-400">
                       {entry.metadata.fileType}
                       {entry.metadata.bodyPart && ` · ${entry.metadata.bodyPart}`}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs dark:text-slate-500 text-slate-400">
                       {entry.eventType === 'upload' ? 'To' : 'By'}:{' '}
-                      <span className="font-mono">{truncateKey(entry.recipientKey)}</span>
+                      <span className="font-mono text-violet-500 dark:text-violet-400/70">{truncateKey(entry.recipientKey)}</span>
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      Tx: <span className="font-mono">{truncateKey(entry.txid)}</span>
+                    <p className="text-xs dark:text-slate-500 text-slate-400">
+                      Tx: <span className="font-mono text-violet-500 dark:text-violet-400/70">{truncateKey(entry.txid)}</span>
                     </p>
                   </div>
                 </div>

@@ -2,10 +2,14 @@ import type { Express } from 'express'
 import type { Db } from 'mongodb'
 import { MedicalTokenTopicManager } from './topic-manager.js'
 import { MedicalTokenLookupService } from './lookup-service.js'
+import { IdentityTopicManager } from './identity-topic-manager.js'
+import { IdentityLookupService } from './identity-lookup-service.js'
 
 export async function setupOverlay(app: Express, db: Db) {
   const topicManager = new MedicalTokenTopicManager(db)
   const lookupService = new MedicalTokenLookupService(db)
+  const identityTopicManager = new IdentityTopicManager(db)
+  const identityLookupService = new IdentityLookupService(db)
 
   // SHIP transaction submission endpoint
   app.post('/submit', async (req, res) => {
@@ -21,6 +25,8 @@ export async function setupOverlay(app: Express, db: Db) {
       for (const topic of topics) {
         if (topic === 'tm_medical_token') {
           await topicManager.processTransaction(transaction)
+        } else if (topic === 'tm_identity') {
+          await identityTopicManager.processTransaction(transaction)
         }
       }
 
@@ -42,6 +48,12 @@ export async function setupOverlay(app: Express, db: Db) {
         return
       }
 
+      if (service === 'ls_identity') {
+        const result = await identityLookupService.query(query)
+        res.json(result)
+        return
+      }
+
       res.status(404).json({ error: 'Unknown lookup service' })
     } catch (error) {
       console.error('Lookup error:', error)
@@ -49,5 +61,5 @@ export async function setupOverlay(app: Express, db: Db) {
     }
   })
 
-  console.log('Overlay engine initialized (tm_medical_token, ls_medical_token)')
+  console.log('Overlay engine initialized (tm_medical_token, ls_medical_token, tm_identity, ls_identity)')
 }

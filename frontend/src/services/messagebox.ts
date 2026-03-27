@@ -12,7 +12,7 @@ export interface MedicalNotification {
   }
 }
 
-export async function notifyDoctor(
+export async function notifyRecipient(
   recipientKey: string,
   notification: MedicalNotification,
 ): Promise<void> {

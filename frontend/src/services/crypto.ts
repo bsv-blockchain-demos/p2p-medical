@@ -1,7 +1,7 @@
 import type { SecurityLevel } from '@bsv/sdk'
 import { getWallet } from './wallet'
 
-const PROTOCOL_ID: [SecurityLevel, string] = [1 as SecurityLevel, 'p2p-medical']
+const PROTOCOL_ID: [SecurityLevel, string] = [1 as SecurityLevel, 'p2p medical']
 
 export async function encryptForRecipient(
   plaintext: Uint8Array,

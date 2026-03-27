@@ -3,7 +3,7 @@ import cors from 'cors'
 import { MongoClient } from 'mongodb'
 import dotenv from 'dotenv'
 import { setupOverlay } from './overlay/index.js'
-import { identityRouter } from './routes/identity.js'
+import { createIdentityRouter } from './routes/identity.js'
 
 dotenv.config()
 
@@ -25,6 +25,11 @@ async function main() {
   await tokensCollection.createIndex({ contentHash: 1 })
   await tokensCollection.createIndex({ txid: 1, vout: 1 }, { unique: true })
   await tokensCollection.createIndex({ status: 1, createdAt: -1 })
+  // Identity indexes
+  const identitiesCollection = db.collection('identities')
+  await identitiesCollection.createIndex({ identityKey: 1 }, { unique: true })
+  await identitiesCollection.createIndex({ name: 1 })
+  await identitiesCollection.createIndex({ role: 1 })
   console.log('MongoDB indexes created')
 
   // Express app
@@ -38,7 +43,7 @@ async function main() {
   })
 
   // Identity routes
-  app.use('/api/identity', identityRouter)
+  app.use('/api/identity', createIdentityRouter(db))
 
   // Setup overlay engine
   await setupOverlay(app, db)
