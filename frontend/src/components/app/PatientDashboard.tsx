@@ -8,6 +8,7 @@ import { uploadToUHRP } from '@/services/storage'
 import { mintUploadToken, type MedicalTokenFields } from '@/services/tokens'
 import { notifyRecipient } from '@/services/messagebox'
 import { getIdentityKey } from '@/services/wallet'
+import { formatTimestamp } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Send } from 'lucide-react'
@@ -135,7 +136,7 @@ export default function PatientDashboard() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-display">Share Medical Image</h2>
+      <h2 className="text-2xl font-semibold">Share Medical Image</h2>
 
       <RecipientSearch onSelect={handleSelectRecipient} selectedKey={recipientKey} selectedName={recipientName} />
 
@@ -177,7 +178,7 @@ export default function PatientDashboard() {
             </div>
             <div>
               <span className="font-medium dark:text-slate-400 text-slate-500">Time:</span>{' '}
-              {new Date(result.timestamp).toLocaleString()}
+              {formatTimestamp(result.timestamp)}
             </div>
           </CardContent>
         </Card>

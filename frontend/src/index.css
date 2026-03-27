@@ -55,10 +55,7 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Outfit', system-ui, -apple-system, sans-serif;
-  }
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Instrument Serif', Georgia, serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
   code, .font-mono {
     font-family: 'JetBrains Mono', ui-monospace, monospace;
@@ -77,11 +74,5 @@
       linear-gradient(to right, rgba(139, 92, 246, 0.03) 1px, transparent 1px),
       linear-gradient(to bottom, rgba(139, 92, 246, 0.03) 1px, transparent 1px);
     background-size: 60px 60px;
-  }
-  .font-display {
-    font-family: 'Instrument Serif', Georgia, serif;
-  }
-  .font-body {
-    font-family: 'Outfit', system-ui, -apple-system, sans-serif;
   }
 }

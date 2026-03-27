@@ -4,7 +4,6 @@ import { queryAuditTrail, type MedicalToken } from '@/services/tokens'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select } from '@/components/ui/select'
-import { truncateKey } from '@/lib/utils'
 
 type FilterType = 'all' | 'upload' | 'accessed'
 type FilterPeriod = '7' | '30' | '90' | 'all'
@@ -34,7 +33,8 @@ export default function AuditTimeline() {
   }, [refresh])
 
   const filtered = entries.filter((entry) => {
-    if (filterType !== 'all' && entry.eventType !== filterType) return false
+    if (filterType === 'upload' && entry.status !== 'pending') return false
+    if (filterType === 'accessed' && entry.status !== 'accessed') return false
     if (filterPeriod !== 'all') {
       const days = parseInt(filterPeriod)
       const cutoff = Date.now() - days * 24 * 60 * 60 * 1000
@@ -49,6 +49,7 @@ export default function AuditTimeline() {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
+      timeZone: 'UTC',
     })
     if (!acc[date]) acc[date] = []
     acc[date].push(entry)
@@ -57,7 +58,7 @@ export default function AuditTimeline() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-display">Audit Log</h2>
+      <h2 className="text-2xl font-semibold">Audit Log</h2>
 
       <div className="flex gap-4">
         <div>
@@ -100,7 +101,7 @@ export default function AuditTimeline() {
       {Object.entries(grouped).map(([date, items]) => (
         <Card key={date}>
           <CardContent className="pt-6">
-            <h3 className="text-xs font-semibold text-violet-500/60 dark:text-violet-400/60 tracking-widest uppercase mb-4 font-body">{date}</h3>
+            <h3 className="text-xs font-semibold text-violet-500/60 dark:text-violet-400/60 tracking-widest uppercase mb-4">{date}</h3>
             <div className="space-y-4">
               {items.map((entry) => (
                 <div
@@ -111,6 +112,7 @@ export default function AuditTimeline() {
                     {new Date(entry.timestamp).toLocaleTimeString('en-US', {
                       hour: '2-digit',
                       minute: '2-digit',
+                      timeZone: 'UTC',
                     })}
                   </div>
 
@@ -121,10 +123,10 @@ export default function AuditTimeline() {
                       </span>
                       <Badge
                         variant={
-                          entry.status === 'pending'
-                            ? 'default'
-                            : entry.status === 'accessed'
-                              ? 'success'
+                          entry.status === 'accessed'
+                            ? 'success'
+                            : entry.status === 'pending'
+                              ? 'warning'
                               : 'secondary'
                         }
                       >
@@ -137,10 +139,10 @@ export default function AuditTimeline() {
                     </p>
                     <p className="text-xs dark:text-slate-500 text-slate-400">
                       {entry.eventType === 'upload' ? 'To' : 'By'}:{' '}
-                      <span className="font-mono text-violet-500 dark:text-violet-400/70">{truncateKey(entry.recipientKey)}</span>
+                      <span className="font-mono text-violet-500 dark:text-violet-400/70 break-all">{entry.recipientKey}</span>
                     </p>
                     <p className="text-xs dark:text-slate-500 text-slate-400">
-                      Tx: <span className="font-mono text-violet-500 dark:text-violet-400/70">{truncateKey(entry.txid)}</span>
+                      Tx: <a href={`https://whatsonchain.com/tx/${entry.txid}`} target="_blank" rel="noopener noreferrer" className="font-mono text-violet-500 dark:text-violet-400/70 hover:underline">{entry.txid}</a>
                     </p>
                   </div>
                 </div>

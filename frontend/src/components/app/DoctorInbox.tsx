@@ -2,15 +2,17 @@ import { useState, useEffect, useCallback } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { useWallet } from '@/context/WalletContext'
 import { queryPendingTokens, type MedicalToken } from '@/services/tokens'
+import { fetchProfile } from '@/services/identity'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { truncateKey, formatFileSize, formatTimestamp } from '@/lib/utils'
+import { formatFileSize, formatTimestamp } from '@/lib/utils'
 import ImageViewer from './ImageViewer'
 
 export default function DoctorInbox() {
   const { identityKey } = useWallet()
   const [tokens, setTokens] = useState<MedicalToken[]>([])
+  const [senderNames, setSenderNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [selectedToken, setSelectedToken] = useState<MedicalToken | null>(null)
 
@@ -20,6 +22,17 @@ export default function DoctorInbox() {
     try {
       const result = await queryPendingTokens(identityKey)
       setTokens(result)
+
+      // Resolve sender names
+      const uniqueKeys = [...new Set(result.map((t) => t.senderKey))]
+      const names: Record<string, string> = {}
+      await Promise.all(
+        uniqueKeys.map(async (key) => {
+          const profile = await fetchProfile(key)
+          if (profile?.name) names[key] = profile.name
+        }),
+      )
+      setSenderNames(names)
     } catch (err) {
       console.error('Failed to fetch inbox:', err)
     } finally {
@@ -46,7 +59,7 @@ export default function DoctorInbox() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-display">Incoming Medical Images</h2>
+        <h2 className="text-2xl font-semibold">Incoming Medical Images</h2>
         <Button variant="outline" size="sm" onClick={refresh} disabled={loading} className="gap-2">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-violet-400' : ''}`} />
           Refresh
@@ -68,8 +81,8 @@ export default function DoctorInbox() {
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <Badge variant={token.status === 'pending' ? 'default' : 'success'}>
-                      {token.status === 'pending' ? 'PENDING' : 'ACCESSED'}
+                    <Badge variant={token.status === 'accessed' ? 'success' : 'warning'}>
+                      {token.status === 'pending' ? 'PENDING' : 'ATTESTED'}
                     </Badge>
                     <span className="text-xs dark:text-slate-500 text-slate-400">
                       {formatTimestamp(token.timestamp)}
@@ -77,7 +90,10 @@ export default function DoctorInbox() {
                   </div>
                   <p className="text-sm">
                     <span className="dark:text-slate-500 text-slate-400">From: </span>
-                    <span className="font-mono text-xs text-violet-500 dark:text-violet-400/70">{truncateKey(token.senderKey)}</span>
+                    {senderNames[token.senderKey] && (
+                      <span className="font-medium mr-1.5">{senderNames[token.senderKey]}</span>
+                    )}
+                    <span className="font-mono text-xs text-violet-500 dark:text-violet-400/70 break-all">{token.senderKey}</span>
                   </p>
                   <p className="text-sm">
                     <span className="dark:text-slate-500 text-slate-400">Type: </span>
@@ -90,7 +106,7 @@ export default function DoctorInbox() {
                   </p>
                   <p className="text-sm">
                     <span className="dark:text-slate-500 text-slate-400">Token: </span>
-                    <span className="font-mono text-xs text-violet-500 dark:text-violet-400/70">{truncateKey(token.txid)}</span>
+                    <a href={`https://whatsonchain.com/tx/${token.txid}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-violet-500 dark:text-violet-400/70 break-all hover:underline">{token.txid}</a>
                   </p>
                 </div>
 

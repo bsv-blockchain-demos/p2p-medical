@@ -5,8 +5,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        display: ['"Instrument Serif"', 'Georgia', 'serif'],
-        body: ['"Outfit"', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['"Inter"', 'system-ui', '-apple-system', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },
       colors: {

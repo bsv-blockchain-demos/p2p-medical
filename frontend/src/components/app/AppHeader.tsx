@@ -1,7 +1,7 @@
-import { Shield, Upload, Inbox, FileText, RotateCcw } from 'lucide-react'
+import { FileLock, Upload, Inbox, FileText, RotateCcw } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useWallet } from '@/context/WalletContext'
 import { truncateKey } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import ThemeToggle from '@/components/ThemeToggle'
 import type { Tab } from '@/pages/MainApp'
@@ -19,25 +19,26 @@ const tabs: { id: Tab; label: string; icon: typeof Upload }[] = [
 
 export default function AppHeader({ activeTab, onTabChange }: AppHeaderProps) {
   const { identityKey, profile, resetProfile } = useWallet()
+  const navigate = useNavigate()
 
   return (
     <header className="dark:bg-slate-950/80 bg-white/80 backdrop-blur-xl border-b dark:border-slate-800/50 border-slate-200 sticky top-0 z-50">
       <div className="max-w-4xl mx-auto px-6 py-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/')} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <div className="w-7 h-7 bg-gradient-to-br from-violet-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-violet-sm">
-              <Shield className="w-4 h-4 text-white" />
+              <FileLock className="w-4 h-4 text-white" />
             </div>
-            <span className="font-bold font-display text-lg">P2P Medical</span>
-          </div>
+            <span className="font-bold text-lg">P2P Medical</span>
+          </button>
 
           <div className="flex items-center gap-3">
             {profile && (
               <>
                 <span className="text-sm font-medium dark:text-slate-200 text-slate-700">{profile.name}</span>
-                <Badge variant={profile.role === 'doctor' ? 'default' : 'secondary'}>
-                  {profile.role}
-                </Badge>
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full border dark:border-slate-700 border-slate-300 dark:text-slate-300 text-slate-600 dark:bg-slate-800/50 bg-slate-100">
+                  {profile.role === 'doctor' ? 'Doctor' : 'Patient'}
+                </span>
               </>
             )}
 

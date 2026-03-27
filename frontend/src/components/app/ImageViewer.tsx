@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, CheckCircle2, Loader2, Circle, Shield } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Loader2, Circle, Shield, Download } from 'lucide-react'
 import { downloadFromUHRP } from '@/services/storage'
 import { decryptFromSender, hashContent } from '@/services/crypto'
-import { spendTokenAndMintReceipt, type MedicalToken } from '@/services/tokens'
+import { confirmTokenAccess, type MedicalToken } from '@/services/tokens'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { truncateKey, formatFileSize, formatTimestamp } from '@/lib/utils'
+import { formatFileSize, formatTimestamp } from '@/lib/utils'
 
 interface ImageViewerProps {
   token: MedicalToken
@@ -55,7 +55,8 @@ export default function ImageViewer({ token, onBack }: ImageViewerProps) {
         if (cancelled) return
 
         // 4. Create object URL for display
-        const blob = new Blob([plaintext.buffer as ArrayBuffer], { type: token.metadata.mimeType || 'image/jpeg' })
+        const mimeType = token.metadata.mimeType || 'image/jpeg'
+        const blob = new Blob([plaintext.buffer as ArrayBuffer], { type: mimeType })
         setImageUrl(URL.createObjectURL(blob))
         setStep('done')
       } catch (err) {
@@ -75,8 +76,8 @@ export default function ImageViewer({ token, onBack }: ImageViewerProps) {
   const handleSpend = async () => {
     setSpending(true)
     try {
-      const result = await spendTokenAndMintReceipt(token.txid, token.vout, token)
-      setReceiptTxid(result.txid || null)
+      const result = await confirmTokenAccess(token.txid, token.vout, token.recipientKey)
+      setReceiptTxid(result.txid)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to confirm access')
     } finally {
@@ -131,15 +132,38 @@ export default function ImageViewer({ token, onBack }: ImageViewerProps) {
         </CardContent>
       </Card>
 
-      {/* Image display */}
+      {/* File display */}
       {imageUrl && (
         <Card>
-          <CardContent className="pt-6 flex justify-center">
-            <img
-              src={imageUrl}
-              alt="Decrypted medical image"
-              className="max-w-full max-h-[500px] rounded-lg ring-1 ring-violet-500/20"
-            />
+          <CardContent className="pt-6 space-y-4">
+            {token.metadata.mimeType?.startsWith('image/') ? (
+              <div className="flex justify-center">
+                <img
+                  src={imageUrl}
+                  alt={token.metadata.fileName || 'Decrypted file'}
+                  className="max-w-full max-h-[500px] rounded-lg ring-1 ring-violet-500/20"
+                />
+              </div>
+            ) : token.metadata.mimeType === 'application/pdf' ? (
+              <iframe
+                src={imageUrl}
+                title={token.metadata.fileName || 'Decrypted PDF'}
+                className="w-full h-[600px] rounded-lg ring-1 ring-violet-500/20"
+              />
+            ) : (
+              <p className="text-center text-sm dark:text-slate-400 text-slate-500">
+                No inline preview available for this file type. Use the download button below.
+              </p>
+            )}
+            <div className="flex justify-center">
+              <a
+                href={imageUrl}
+                download={token.metadata.fileName || 'decrypted-file'}
+                className="inline-flex items-center gap-2 text-sm text-violet-400 hover:text-violet-300 underline"
+              >
+                <Download className="w-4 h-4" /> Download {token.metadata.fileName || 'file'}
+              </a>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -149,11 +173,11 @@ export default function ImageViewer({ token, onBack }: ImageViewerProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base font-body font-semibold">File Details</CardTitle>
+              <CardTitle className="text-base font-semibold">File Details</CardTitle>
             </CardHeader>
             <CardContent className="text-sm space-y-1">
-              <p><span className="dark:text-slate-500 text-slate-400">From:</span> <span className="font-mono text-violet-500 dark:text-violet-400/70">{truncateKey(token.senderKey)}</span></p>
-              <p><span className="dark:text-slate-500 text-slate-400">Type:</span> {token.metadata.fileType}{token.metadata.bodyPart && `, ${token.metadata.bodyPart}`}</p>
+              <p><span className="dark:text-slate-500 text-slate-400">From:</span> <span className="font-mono text-xs text-violet-500 dark:text-violet-400/70 break-all">{token.senderKey}</span></p>
+              <p><span className="dark:text-slate-500 text-slate-400">Type:</span> {token.metadata.fileType}{token.metadata.bodyPart && ` · ${token.metadata.bodyPart}`}</p>
               <p><span className="dark:text-slate-500 text-slate-400">Size:</span> {formatFileSize(token.metadata.fileSizeBytes)}</p>
               <p><span className="dark:text-slate-500 text-slate-400">Hash:</span> <span className={hashMatch ? 'text-violet-400' : 'text-rose-400'}>SHA-256 {hashMatch ? 'verified' : 'mismatch'}</span></p>
               <p><span className="dark:text-slate-500 text-slate-400">Sent:</span> {formatTimestamp(token.timestamp)}</p>
@@ -162,21 +186,21 @@ export default function ImageViewer({ token, onBack }: ImageViewerProps) {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base font-body font-semibold flex items-center gap-2">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <Shield className="w-4 h-4 text-violet-400" />
                 Blockchain Proof
               </CardTitle>
             </CardHeader>
             <CardContent className="text-sm space-y-1">
-              <p><span className="dark:text-slate-500 text-slate-400">Upload Tx:</span> <span className="font-mono text-xs text-violet-500 dark:text-violet-400/70">{truncateKey(token.txid)}</span></p>
+              <p><span className="dark:text-slate-500 text-slate-400">Upload Tx:</span> <a href={`https://whatsonchain.com/tx/${token.txid}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-violet-500 dark:text-violet-400/70 break-all hover:underline">{token.txid}</a></p>
               <p>
                 <span className="dark:text-slate-500 text-slate-400">Status:</span>{' '}
-                <Badge variant={receiptTxid ? 'success' : 'secondary'}>
-                  {receiptTxid ? 'Viewed' : 'Pending'}
+                <Badge variant={receiptTxid ? 'success' : 'warning'}>
+                  {receiptTxid ? 'Accessed' : 'Pending'}
                 </Badge>
               </p>
               {receiptTxid && (
-                <p><span className="dark:text-slate-500 text-slate-400">Receipt:</span> <span className="font-mono text-xs text-violet-500 dark:text-violet-400/70">{truncateKey(receiptTxid)}</span></p>
+                <p><span className="dark:text-slate-500 text-slate-400">Attestation Tx:</span> <a href={`https://whatsonchain.com/tx/${receiptTxid}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-violet-500 dark:text-violet-400/70 break-all hover:underline">{receiptTxid}</a></p>
               )}
             </CardContent>
           </Card>
@@ -187,7 +211,7 @@ export default function ImageViewer({ token, onBack }: ImageViewerProps) {
       {step === 'done' && !receiptTxid && (
         <div className="flex justify-center">
           <Button size="lg" onClick={handleSpend} disabled={spending}>
-            {spending ? 'Confirming...' : 'Confirm Access (Spend Token)'}
+            {spending ? 'Attesting...' : 'Attest Viewing'}
           </Button>
         </div>
       )}

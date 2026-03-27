@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Shield, User, Stethoscope, Loader2 } from 'lucide-react'
+import { FileLock, User, Stethoscope, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useWallet, type Role } from '@/context/WalletContext'
@@ -31,9 +31,9 @@ export default function RegisterProfile() {
           {/* Header */}
           <div className="flex flex-col items-center gap-3 mb-8">
             <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-violet-sm">
-              <Shield className="w-6 h-6 text-white" />
+              <FileLock className="w-6 h-6 text-white" />
             </div>
-            <h1 className="text-xl font-bold font-display">Create Your Profile</h1>
+            <h1 className="text-xl font-bold">Create Your Profile</h1>
             <p className="text-sm dark:text-slate-400 text-slate-500 text-center">
               Register your identity on the BSV blockchain to start sharing medical data securely.
             </p>

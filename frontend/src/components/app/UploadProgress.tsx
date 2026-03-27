@@ -40,7 +40,7 @@ export default function UploadProgress({ step, error }: UploadProgressProps) {
   return (
     <Card>
       <CardContent className="pt-6">
-        <h3 className="font-semibold mb-4 text-xs tracking-widest uppercase text-violet-500 dark:text-violet-400 font-body">
+        <h3 className="font-semibold mb-4 text-xs tracking-widest uppercase text-violet-500 dark:text-violet-400">
           {step === 'done' ? 'COMPLETE' : step === 'error' ? 'ERROR' : 'PROGRESS'}
         </h3>
         <div className="space-y-3">

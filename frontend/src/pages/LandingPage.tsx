@@ -7,6 +7,7 @@ import ThemeToggle from '@/components/ThemeToggle'
 import {
   Lock,
   Shield,
+  FileLock,
   User,
   HardDrive,
   Users,
@@ -119,9 +120,9 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-gradient-to-br from-violet-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-violet-md">
-              <Shield className="w-5 h-5 text-white" />
+              <FileLock className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-xl tracking-tight font-display">P2P Med</span>
+            <span className="font-bold text-xl tracking-tight">P2P Medical</span>
           </div>
           <div className="flex items-center gap-3">
             <ThemeToggle />
@@ -158,7 +159,7 @@ export default function LandingPage() {
           </motion.div>
 
           <motion.h1
-            className="text-5xl sm:text-7xl font-display tracking-tight dark:text-white text-slate-900 leading-[1.1]"
+            className="text-5xl sm:text-7xl font-bold tracking-tight dark:text-white text-slate-900 leading-[1.1]"
             variants={fadeUp}
           >
             Secure Medical
@@ -167,7 +168,7 @@ export default function LandingPage() {
           </motion.h1>
 
           <motion.p
-            className="mt-8 text-xl dark:text-slate-400 text-slate-500 max-w-xl mx-auto leading-relaxed font-body"
+            className="mt-8 text-xl dark:text-slate-400 text-slate-500 max-w-xl mx-auto leading-relaxed"
             variants={fadeUp}
           >
             Patient-controlled, end-to-end encrypted, with an immutable audit trail. Your data, your rules.
@@ -218,13 +219,13 @@ export default function LandingPage() {
             viewport={{ once: true }}
             variants={stagger}
           >
-            <motion.p className="text-violet-500 dark:text-violet-400 font-semibold text-sm tracking-widest uppercase mb-3 font-body" variants={fadeUp}>
+            <motion.p className="text-violet-500 dark:text-violet-400 font-semibold text-sm tracking-widest uppercase mb-3" variants={fadeUp}>
               The Problem
             </motion.p>
-            <motion.h2 className="text-3xl sm:text-4xl font-display mb-4" variants={fadeUp}>
+            <motion.h2 className="text-3xl sm:text-4xl font-semibold mb-4" variants={fadeUp}>
               Healthcare data is broken
             </motion.h2>
-            <motion.p className="dark:text-slate-400 text-slate-500 max-w-lg mb-12 text-lg font-body" variants={fadeUp}>
+            <motion.p className="dark:text-slate-400 text-slate-500 max-w-lg mb-12 text-lg" variants={fadeUp}>
               Patients have no control, no visibility, and no say in who accesses their most sensitive information.
             </motion.p>
 
@@ -236,8 +237,8 @@ export default function LandingPage() {
                   className="group dark:bg-slate-900/60 bg-white/80 backdrop-blur-sm border dark:border-slate-800/60 border-slate-200/60 rounded-2xl p-5 hover:border-violet-500/20 hover:shadow-violet-sm transition-all duration-300"
                 >
                   <Icon className="w-6 h-6 text-rose-400 mb-3 group-hover:text-rose-300 transition-colors" />
-                  <p className="font-semibold text-sm mb-1 font-body">{label}</p>
-                  <p className="text-xs dark:text-slate-500 text-slate-400 font-body">{detail}</p>
+                  <p className="font-semibold text-sm mb-1">{label}</p>
+                  <p className="text-xs dark:text-slate-500 text-slate-400">{detail}</p>
                 </motion.div>
               ))}
             </div>
@@ -255,10 +256,10 @@ export default function LandingPage() {
             variants={stagger}
           >
             <motion.div className="text-center mb-16" variants={fadeUp}>
-              <p className="text-violet-500 dark:text-violet-400 font-semibold text-sm tracking-widest uppercase mb-3 font-body">
+              <p className="text-violet-500 dark:text-violet-400 font-semibold text-sm tracking-widest uppercase mb-3">
                 How It Works
               </p>
-              <h2 className="text-3xl sm:text-4xl font-display">Three simple steps</h2>
+              <h2 className="text-3xl sm:text-4xl font-semibold">Three simple steps</h2>
             </motion.div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -273,9 +274,9 @@ export default function LandingPage() {
                     <div className="w-14 h-14 bg-violet-500/10 border border-violet-500/20 rounded-2xl flex items-center justify-center mb-6">
                       <Icon className="w-7 h-7 text-violet-400" />
                     </div>
-                    <div className="text-xs font-bold text-violet-500/60 mb-2 font-body">STEP {step}</div>
-                    <h3 className="text-xl font-display mb-3">{title}</h3>
-                    <p className="dark:text-slate-400 text-slate-500 leading-relaxed font-body">{desc}</p>
+                    <div className="text-xs font-bold text-violet-500/60 mb-2">STEP {step}</div>
+                    <h3 className="text-xl font-semibold mb-3">{title}</h3>
+                    <p className="dark:text-slate-400 text-slate-500 leading-relaxed">{desc}</p>
                   </div>
                 </motion.div>
               ))}
@@ -294,10 +295,10 @@ export default function LandingPage() {
             variants={stagger}
           >
             <motion.div className="text-center mb-16" variants={fadeUp}>
-              <p className="text-violet-500 dark:text-violet-400 font-semibold text-sm tracking-widest uppercase mb-3 font-body">
+              <p className="text-violet-500 dark:text-violet-400 font-semibold text-sm tracking-widest uppercase mb-3">
                 Features
               </p>
-              <h2 className="text-3xl sm:text-4xl font-display">Built for privacy, by design</h2>
+              <h2 className="text-3xl sm:text-4xl font-semibold">Built for privacy, by design</h2>
             </motion.div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -307,8 +308,8 @@ export default function LandingPage() {
                     <div className="w-12 h-12 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mb-5">
                       <Icon className={`w-6 h-6 ${iconColor}`} />
                     </div>
-                    <h3 className="text-lg font-display mb-2">{title}</h3>
-                    <p className="dark:text-slate-400 text-slate-500 leading-relaxed text-sm font-body">{desc}</p>
+                    <h3 className="text-lg font-semibold mb-2">{title}</h3>
+                    <p className="dark:text-slate-400 text-slate-500 leading-relaxed text-sm">{desc}</p>
                   </div>
                 </motion.div>
               ))}
@@ -331,10 +332,10 @@ export default function LandingPage() {
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(139,92,246,0.06),transparent_60%)]" />
 
             <div className="relative">
-              <motion.h2 className="text-3xl sm:text-4xl font-display mb-4" variants={fadeUp}>
+              <motion.h2 className="text-3xl sm:text-4xl font-semibold mb-4" variants={fadeUp}>
                 Take control of your medical data
               </motion.h2>
-              <motion.p className="dark:text-slate-400 text-slate-500 text-lg mb-10 max-w-lg mx-auto font-body" variants={fadeUp}>
+              <motion.p className="dark:text-slate-400 text-slate-500 text-lg mb-10 max-w-lg mx-auto" variants={fadeUp}>
                 Connect your BSV wallet to start sharing medical images securely, privately, and on your terms.
               </motion.p>
               <motion.div variants={fadeUp}>
@@ -356,7 +357,7 @@ export default function LandingPage() {
       {/* Tech Badges */}
       <section className="py-16 border-t dark:border-slate-800/50 border-slate-200 dark:bg-slate-950 bg-white">
         <div className="max-w-6xl mx-auto px-6 text-center">
-          <p className="text-sm font-semibold dark:text-slate-500 text-slate-400 tracking-widest uppercase mb-6 font-body">Built With</p>
+          <p className="text-sm font-semibold dark:text-slate-500 text-slate-400 tracking-widest uppercase mb-6">Built With</p>
           <div className="flex flex-wrap justify-center gap-3">
             {['BSV SDK', 'Message Box', 'UHRP', 'Overlay Network', 'BRC-100 Wallet', 'PushDrop Tokens'].map(
               (tech) => (
@@ -378,9 +379,9 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between text-sm dark:text-slate-500 text-slate-400">
           <div className="flex items-center gap-2">
             <div className="w-5 h-5 bg-gradient-to-br from-violet-500 to-indigo-600 rounded-md flex items-center justify-center">
-              <Shield className="w-3 h-3 text-white" />
+              <FileLock className="w-3 h-3 text-white" />
             </div>
-            <span>P2P Med</span>
+            <span>P2P Medical</span>
           </div>
           <a
             href="https://bsvblockchain.org"
