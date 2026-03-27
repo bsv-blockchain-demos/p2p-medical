@@ -4,6 +4,7 @@ import { MongoClient } from 'mongodb'
 import dotenv from 'dotenv'
 import { setupOverlay } from './overlay/index.js'
 import { createIdentityRouter } from './routes/identity.js'
+import { createTokenRouter } from './routes/tokens.js'
 
 dotenv.config()
 
@@ -44,6 +45,9 @@ async function main() {
 
   // Identity routes
   app.use('/api/identity', createIdentityRouter(db))
+
+  // Token routes (direct API — primary data path)
+  app.use('/api/tokens', createTokenRouter(db))
 
   // Setup overlay engine
   await setupOverlay(app, db)

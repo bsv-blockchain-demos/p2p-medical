@@ -46,6 +46,23 @@ function encodeFields(fields: MedicalTokenFields): number[][] {
   ]
 }
 
+async function shareTokenDirect(fields: MedicalTokenFields, txid: string): Promise<void> {
+  await fetch(`${API_URL}/api/tokens/share`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      txid,
+      eventType: fields.eventType,
+      contentHash: fields.contentHash,
+      uhrpUrl: fields.uhrpUrl,
+      senderKey: fields.senderKey,
+      recipientKey: fields.recipientKey,
+      metadata: fields.metadata,
+      keyID: fields.keyID,
+    }),
+  })
+}
+
 export async function mintUploadToken(
   fields: MedicalTokenFields,
 ): Promise<CreateActionResult> {
@@ -72,20 +89,51 @@ export async function mintUploadToken(
     ],
   })
 
-  // Submit directly to our backend overlay (bypass SHIPBroadcaster host discovery)
+  // Primary path: write token directly to backend DB for inbox
+  if (result.txid) {
+    try {
+      await shareTokenDirect(fields, result.txid)
+    } catch (err) {
+      console.error('Direct token share failed:', err)
+    }
+  }
+
+  // Bonus: submit PushDrop TX to overlay (non-blocking)
   if (result.tx) {
-    const tx = Transaction.fromAtomicBEEF(result.tx)
-    await fetch(`${API_URL}/submit`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        transaction: tx.toHex(),
-        topics: [TOPIC],
-      }),
-    })
+    try {
+      const tx = Transaction.fromAtomicBEEF(result.tx)
+      await fetch(`${API_URL}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transaction: tx.toHex(),
+          topics: [TOPIC],
+        }),
+      })
+    } catch (err) {
+      console.error('Overlay submit failed (non-critical):', err)
+    }
   }
 
   return result
+}
+
+export async function confirmTokenAccess(
+  uploadTxid: string,
+  uploadVout: number,
+  accessedBy: string,
+): Promise<{ status: string; txid: string }> {
+  // POC: mark as accessed via direct API (on-chain spend deferred)
+  const res = await fetch(`${API_URL}/api/tokens/access`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ txid: uploadTxid, vout: uploadVout, accessedBy }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Failed to confirm access' }))
+    throw new Error(err.error || 'Failed to confirm access')
+  }
+  return res.json()
 }
 
 export async function spendTokenAndMintReceipt(
