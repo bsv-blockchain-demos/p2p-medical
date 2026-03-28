@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { WalletClient } from '@bsv/sdk'
-import { connectWallet, isWalletConnected, getIdentityKey } from '@/services/wallet'
+import { connectWallet, isWalletConnected, getIdentityKey, disconnectWallet } from '@/services/wallet'
 import { fetchProfile, registerIdentity, deleteProfile, type UserProfile } from '@/services/identity'
 
 export type Role = 'patient' | 'doctor'
@@ -17,6 +17,7 @@ interface WalletState {
   connect: () => Promise<boolean>
   register: (name: string, role: Role) => Promise<void>
   resetProfile: () => Promise<void>
+  disconnect: () => void
   error: string | null
 }
 
@@ -32,6 +33,7 @@ const WalletContext = createContext<WalletState>({
   connect: async () => false,
   register: async () => {},
   resetProfile: async () => {},
+  disconnect: () => {},
   error: null,
 })
 
@@ -77,14 +79,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setError(null)
     try {
       await registerIdentity(name, role)
-      // Confirm stored in backend
-      const newProfile = await fetchProfile(identityKey)
-      if (newProfile) {
-        setProfile(newProfile)
-        setRegistered(true)
-      } else {
-        throw new Error('Registration succeeded but profile not found')
-      }
+      // Registration succeeded — set profile directly (no round-trip needed)
+      setProfile({ name, role, identityKey })
+      setRegistered(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed')
       throw err
@@ -101,6 +98,16 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setError(null)
   }, [identityKey])
 
+  const disconnect = useCallback(() => {
+    disconnectWallet()
+    setWallet(null)
+    setIdentityKey(null)
+    setConnected(false)
+    setRegistered(false)
+    setProfile(null)
+    setError(null)
+  }, [])
+
   useEffect(() => {
     isWalletConnected().then((ok) => {
       if (ok) connect()
@@ -111,7 +118,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <WalletContext.Provider
-      value={{ wallet, identityKey, connected, connecting, registered, registering, profile, role, connect, register, resetProfile, error }}
+      value={{ wallet, identityKey, connected, connecting, registered, registering, profile, role, connect, register, resetProfile, disconnect, error }}
     >
       {children}
     </WalletContext.Provider>

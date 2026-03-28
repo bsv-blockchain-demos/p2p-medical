@@ -3,8 +3,8 @@ import type { Db, Collection, Filter } from 'mongodb'
 interface MedicalTokenDoc {
   txid: string
   vout: number
-  status: 'pending' | 'accessed' | 'receipt'
-  eventType: 'upload' | 'accessed'
+  status: 'encrypted' | 'decrypted'
+  eventType: 'upload' | 'decrypted'
   protocolPrefix: string
   contentHash: string
   uhrpUrl: string
@@ -25,8 +25,10 @@ interface LookupQuery {
   senderKey?: string
   identityKey?: string
   status?: string
-  type?: 'audit' | 'inbox'
+  type?: 'audit' | 'inbox' | 'audit-events' | 'file-views'
   contentHash?: string
+  uhrpUrl?: string
+  txid?: string
 }
 
 interface LookupResult {
@@ -41,12 +43,22 @@ interface LookupResult {
 
 export class MedicalTokenLookupService {
   private collection: Collection<MedicalTokenDoc>
+  private auditEvents: Collection
 
   constructor(db: Db) {
     this.collection = db.collection<MedicalTokenDoc>('medical_tokens')
+    this.auditEvents = db.collection('audit_events')
   }
 
   async query(query: LookupQuery): Promise<LookupResult> {
+    if (query.type === 'audit-events' && query.identityKey) {
+      return this.queryAuditEvents(query.identityKey)
+    }
+
+    if (query.type === 'file-views' && query.txid) {
+      return this.queryFileViews(query.txid)
+    }
+
     const filter: Filter<MedicalTokenDoc> = {}
 
     if (query.type === 'audit' && query.identityKey) {
@@ -89,6 +101,61 @@ export class MedicalTokenLookupService {
         timestamp: doc.timestamp,
         spendTxid: doc.spendTxid,
         accessedAt: doc.accessedAt,
+      })),
+    }
+  }
+
+  private async queryFileViews(txid: string): Promise<LookupResult> {
+    const docs = await this.auditEvents
+      .find({
+        txid,
+        event: { $in: ['access', 'view'] },
+      })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .toArray()
+
+    return {
+      type: 'output-list',
+      outputs: docs.map((doc) => ({
+        txid: doc.txid || '',
+        outputIndex: 0,
+        outputScript: '',
+        event: doc.event,
+        accessedBy: doc.accessedBy || doc.recipientKey || '',
+        recipientKey: doc.recipientKey || '',
+        timestamp: doc.createdAt ? new Date(doc.createdAt).getTime() : 0,
+      })),
+    }
+  }
+
+  private async queryAuditEvents(identityKey: string): Promise<LookupResult> {
+    const docs = await this.auditEvents
+      .find({
+        $or: [
+          { senderKey: identityKey },
+          { recipientKey: identityKey },
+        ],
+      })
+      .sort({ createdAt: -1 })
+      .limit(200)
+      .toArray()
+
+    return {
+      type: 'output-list',
+      outputs: docs.map((doc) => ({
+        txid: doc.txid || '',
+        outputIndex: 0,
+        outputScript: '',
+        event: doc.event,
+        senderKey: doc.senderKey || '',
+        recipientKey: doc.recipientKey || '',
+        accessedBy: doc.accessedBy || '',
+        uhrpUrl: doc.uhrpUrl || '',
+        contentHash: doc.contentHash || '',
+        keyID: doc.keyID || '',
+        metadata: doc.metadata || {},
+        timestamp: doc.createdAt ? new Date(doc.createdAt).getTime() : 0,
       })),
     }
   }

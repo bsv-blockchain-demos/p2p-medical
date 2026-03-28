@@ -9,7 +9,7 @@ const BASKET = 'medical_tokens'
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 export interface MedicalTokenFields {
-  eventType: 'upload' | 'accessed'
+  eventType: 'upload' | 'decrypted'
   contentHash: string
   uhrpUrl: string
   senderKey: string
@@ -20,6 +20,8 @@ export interface MedicalTokenFields {
     fileName?: string
     mimeType: string
     fileSizeBytes: number
+    retentionExpiry?: number
+    providerCount?: number
   }
   keyID: string
 }
@@ -27,7 +29,7 @@ export interface MedicalTokenFields {
 export interface MedicalToken extends MedicalTokenFields {
   txid: string
   vout: number
-  status: 'pending' | 'accessed' | 'receipt'
+  status: 'encrypted' | 'decrypted'
   timestamp: number
 }
 
@@ -89,10 +91,18 @@ export async function mintUploadToken(
     ],
   })
 
+  // Derive txid: prefer result.txid, fall back to parsing the tx
+  let txid = result.txid || ''
+  let parsedTx: Transaction | null = null
+  if (!txid && result.tx) {
+    parsedTx = Transaction.fromAtomicBEEF(result.tx)
+    txid = parsedTx.id('hex')
+  }
+
   // Primary path: write token directly to backend DB for inbox
-  if (result.txid) {
+  if (txid) {
     try {
-      await shareTokenDirect(fields, result.txid)
+      await shareTokenDirect(fields, txid)
     } catch (err) {
       console.error('Direct token share failed:', err)
     }
@@ -101,7 +111,7 @@ export async function mintUploadToken(
   // Bonus: submit PushDrop TX to overlay (non-blocking)
   if (result.tx) {
     try {
-      const tx = Transaction.fromAtomicBEEF(result.tx)
+      const tx = parsedTx || Transaction.fromAtomicBEEF(result.tx)
       await fetch(`${API_URL}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -136,6 +146,53 @@ export async function confirmTokenAccess(
   return res.json()
 }
 
+export async function recordView(
+  uploadTxid: string,
+  uploadVout: number,
+  accessedBy: string,
+): Promise<{ status: string; txid: string }> {
+  const res = await fetch(`${API_URL}/api/tokens/view`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ txid: uploadTxid, vout: uploadVout, accessedBy }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Failed to record view' }))
+    throw new Error(err.error || 'Failed to record view')
+  }
+  return res.json()
+}
+
+export interface ViewEvent {
+  accessedBy: string
+  timestamp: number
+  event: string
+}
+
+export async function queryFileViews(
+  txid: string,
+): Promise<ViewEvent[]> {
+  const res = await fetch(`${API_URL}/lookup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      service: 'ls_medical_token',
+      query: { txid, type: 'file-views' },
+    }),
+  })
+
+  if (!res.ok) return []
+
+  const data = await res.json()
+  if (data.type !== 'output-list' || !data.outputs) return []
+
+  return data.outputs.map((output: Record<string, unknown>) => ({
+    accessedBy: (output.accessedBy as string) || '',
+    timestamp: (output.timestamp as number) || 0,
+    event: (output.event as string) || 'view',
+  }))
+}
+
 export async function spendTokenAndMintReceipt(
   uploadTxid: string,
   uploadVout: number,
@@ -152,7 +209,7 @@ export async function spendTokenAndMintReceipt(
 
   const receiptFields: MedicalTokenFields = {
     ...uploadFields,
-    eventType: 'accessed',
+    eventType: 'decrypted',
   }
   const receiptScript = await pushDrop.lock(
     encodeFields(receiptFields),
@@ -212,7 +269,7 @@ export async function queryPendingTokens(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       service: 'ls_medical_token',
-      query: { recipientKey, status: 'pending' },
+      query: { recipientKey, status: 'encrypted' },
     }),
   })
 
@@ -235,20 +292,33 @@ export async function queryPendingTokens(
     keyID: (output.keyID as string) || '',
     txid: (output.txid as string) || '',
     vout: (output.outputIndex as number) ?? 0,
-    status: (output.status as string) || 'pending',
+    status: (output.status as string) || 'encrypted',
     timestamp: (output.timestamp as number) || Date.now(),
   }))
 }
 
+export interface AuditEvent {
+  event: 'upload' | 'access' | 'view'
+  txid: string
+  senderKey: string
+  recipientKey: string
+  accessedBy: string
+  uhrpUrl: string
+  contentHash: string
+  keyID: string
+  metadata: MedicalToken['metadata']
+  timestamp: number
+}
+
 export async function queryAuditTrail(
   identityKey: string,
-): Promise<MedicalToken[]> {
+): Promise<AuditEvent[]> {
   const res = await fetch(`${API_URL}/lookup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       service: 'ls_medical_token',
-      query: { identityKey, type: 'audit' },
+      query: { identityKey, type: 'audit-events' },
     }),
   })
 
@@ -258,20 +328,41 @@ export async function queryAuditTrail(
   if (data.type !== 'output-list' || !data.outputs) return []
 
   return data.outputs.map((output: Record<string, unknown>) => ({
-    eventType: (output.eventType as string) || 'upload',
-    contentHash: (output.contentHash as string) || '',
-    uhrpUrl: (output.uhrpUrl as string) || '',
+    event: (output.event as string) || 'upload',
+    txid: (output.txid as string) || '',
     senderKey: (output.senderKey as string) || '',
     recipientKey: (output.recipientKey as string) || '',
+    accessedBy: (output.accessedBy as string) || '',
+    uhrpUrl: (output.uhrpUrl as string) || '',
+    contentHash: (output.contentHash as string) || '',
+    keyID: (output.keyID as string) || '',
     metadata: (output.metadata as MedicalToken['metadata']) || {
       fileType: 'other',
       mimeType: 'application/octet-stream',
       fileSizeBytes: 0,
     },
-    keyID: (output.keyID as string) || '',
-    txid: (output.txid as string) || '',
-    vout: (output.outputIndex as number) ?? 0,
-    status: (output.status as string) || 'pending',
     timestamp: (output.timestamp as number) || Date.now(),
   }))
+}
+
+export async function resolveNames(
+  keys: string[],
+): Promise<Map<string, string>> {
+  const names = new Map<string, string>()
+  const unique = [...new Set(keys.filter(Boolean))]
+
+  await Promise.all(
+    unique.map(async (key) => {
+      try {
+        const res = await fetch(`${API_URL}/api/identity/profile?key=${encodeURIComponent(key)}`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (data?.name) names.set(key, data.name)
+      } catch {
+        // Ignore resolution failures
+      }
+    }),
+  )
+
+  return names
 }

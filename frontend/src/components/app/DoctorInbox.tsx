@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { RefreshCw } from 'lucide-react'
 import { useWallet } from '@/context/WalletContext'
 import { queryPendingTokens, type MedicalToken } from '@/services/tokens'
@@ -7,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatFileSize, formatTimestamp } from '@/lib/utils'
+import { staggerContainer, fadeInUp, slideInRight } from '@/lib/motion'
 import ImageViewer from './ImageViewer'
 
 export default function DoctorInbox() {
@@ -46,80 +48,106 @@ export default function DoctorInbox() {
 
   if (selectedToken) {
     return (
-      <ImageViewer
-        token={selectedToken}
-        onBack={() => {
-          setSelectedToken(null)
-          refresh()
-        }}
-      />
+      <motion.div
+        variants={slideInRight}
+        initial="hidden"
+        animate="show"
+      >
+        <ImageViewer
+          token={selectedToken}
+          onBack={() => {
+            setSelectedToken(null)
+            refresh()
+          }}
+        />
+      </motion.div>
     )
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold">Incoming Medical Images</h2>
+        <h2 className="text-2xl font-semibold">Incoming Medical Files</h2>
         <Button variant="outline" size="sm" onClick={refresh} disabled={loading} className="gap-2">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-violet-400' : ''}`} />
           Refresh
         </Button>
       </div>
 
-      {tokens.length === 0 && !loading && (
-        <Card>
-          <CardContent className="py-12 text-center dark:text-slate-500 text-slate-400">
-            No pending images. Check back later.
-          </CardContent>
-        </Card>
-      )}
+      <AnimatePresence mode="wait">
+        {tokens.length === 0 && !loading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            <Card>
+              <CardContent className="py-12 text-center dark:text-slate-500 text-slate-400">
+                No encrypted images. Check back later.
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <div className="space-y-4">
+      <motion.div
+        className="space-y-4"
+        variants={staggerContainer}
+        initial="hidden"
+        animate="show"
+      >
         {tokens.map((token) => (
-          <Card key={`${token.txid}:${token.vout}`} className="hover:shadow-violet-sm transition-all duration-200">
-            <CardContent className="pt-6">
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Badge variant={token.status === 'accessed' ? 'success' : 'warning'}>
-                      {token.status === 'pending' ? 'PENDING' : 'ATTESTED'}
-                    </Badge>
-                    <span className="text-xs dark:text-slate-500 text-slate-400">
-                      {formatTimestamp(token.timestamp)}
-                    </span>
+          <motion.div key={`${token.txid}:${token.vout}`} variants={fadeInUp}>
+            <Card className="hover:shadow-violet-sm transition-all duration-200">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-3 flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs dark:text-slate-500 text-slate-400">
+                        {formatTimestamp(token.timestamp)}
+                      </span>
+                      <Badge variant={token.status === 'decrypted' ? 'success' : 'warning'}>
+                        {token.status === 'encrypted' ? 'ENCRYPTED' : 'DECRYPTED'}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-[3.5rem_1fr] gap-x-3 gap-y-1.5 text-sm">
+                      <span className="font-medium dark:text-slate-400 text-slate-500">From</span>
+                      <div className="min-w-0">
+                        {senderNames[token.senderKey] && (
+                          <span className="font-semibold dark:text-slate-200 text-slate-700 mr-2">{senderNames[token.senderKey]}</span>
+                        )}
+                        <span className="font-mono text-xs dark:text-slate-500 text-slate-400 break-all">{token.senderKey}</span>
+                      </div>
+                      <span className="font-medium dark:text-slate-400 text-slate-500">Type</span>
+                      <span className="dark:text-slate-300 text-slate-600">
+                        {token.metadata.fileType}
+                        {token.metadata.bodyPart && ` · ${token.metadata.bodyPart}`}
+                      </span>
+                      <span className="font-medium dark:text-slate-400 text-slate-500">Size</span>
+                      <span className="dark:text-slate-300 text-slate-600">{formatFileSize(token.metadata.fileSizeBytes)}</span>
+                      <span className="font-medium dark:text-slate-400 text-slate-500">Token</span>
+                      <a
+                        href={`https://whatsonchain.com/tx/${token.txid}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-xs text-violet-500 dark:text-violet-400 hover:text-violet-600 dark:hover:text-violet-300 hover:underline break-all"
+                      >
+                        {token.txid}
+                      </a>
+                    </div>
                   </div>
-                  <p className="text-sm">
-                    <span className="dark:text-slate-500 text-slate-400">From: </span>
-                    {senderNames[token.senderKey] && (
-                      <span className="font-medium mr-1.5">{senderNames[token.senderKey]}</span>
-                    )}
-                    <span className="font-mono text-xs text-violet-500 dark:text-violet-400/70 break-all">{token.senderKey}</span>
-                  </p>
-                  <p className="text-sm">
-                    <span className="dark:text-slate-500 text-slate-400">Type: </span>
-                    {token.metadata.fileType}
-                    {token.metadata.bodyPart && ` · ${token.metadata.bodyPart}`}
-                  </p>
-                  <p className="text-sm">
-                    <span className="dark:text-slate-500 text-slate-400">Size: </span>
-                    {formatFileSize(token.metadata.fileSizeBytes)}
-                  </p>
-                  <p className="text-sm">
-                    <span className="dark:text-slate-500 text-slate-400">Token: </span>
-                    <a href={`https://whatsonchain.com/tx/${token.txid}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-violet-500 dark:text-violet-400/70 break-all hover:underline">{token.txid}</a>
-                  </p>
-                </div>
 
-                {token.status === 'pending' && (
-                  <Button size="sm" onClick={() => setSelectedToken(token)}>
-                    View
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  {token.status === 'encrypted' && (
+                    <Button size="sm" onClick={() => setSelectedToken(token)} className="shrink-0">
+                      View
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     </div>
   )
 }

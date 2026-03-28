@@ -21,6 +21,10 @@ export async function getIdentityKey(): Promise<string> {
   return publicKey
 }
 
+export function disconnectWallet(): void {
+  walletClient = null
+}
+
 export async function isWalletConnected(): Promise<boolean> {
   try {
     if (!walletClient) return false

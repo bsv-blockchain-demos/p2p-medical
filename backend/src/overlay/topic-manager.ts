@@ -4,8 +4,8 @@ import { Transaction } from '@bsv/sdk'
 interface MedicalTokenDoc {
   txid: string
   vout: number
-  status: 'pending' | 'accessed' | 'receipt'
-  eventType: 'upload' | 'accessed'
+  status: 'encrypted' | 'decrypted'
+  eventType: 'upload' | 'decrypted'
   protocolPrefix: string
   contentHash: string
   uhrpUrl: string
@@ -67,8 +67,8 @@ export class MedicalTokenTopicManager {
     const doc: MedicalTokenDoc = {
       txid: output.txid,
       vout: output.vout,
-      status: eventType === 'upload' ? 'pending' : 'receipt',
-      eventType: eventType as 'upload' | 'accessed',
+      status: eventType === 'upload' ? 'encrypted' : 'decrypted',
+      eventType: eventType as 'upload' | 'decrypted',
       protocolPrefix: prefix,
       contentHash,
       uhrpUrl,
@@ -102,7 +102,7 @@ export class MedicalTokenTopicManager {
       { txid: prevTxid, vout: prevVout },
       {
         $set: {
-          status: 'accessed',
+          status: 'decrypted',
           spendTxid,
           accessedAt: Date.now(),
           updatedAt: new Date(),

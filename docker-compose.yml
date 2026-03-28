@@ -11,6 +11,7 @@ services:
     environment:
       - VITE_API_URL=http://localhost:3001
       - VITE_UHRP_URL=http://localhost:3002
+      - VITE_UHRP_PROVIDERS=https://nanostore.babbage.systems
       - VITE_MESSAGEBOX_URL=http://localhost:3003
     depends_on:
       - backend

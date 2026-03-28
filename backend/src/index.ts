@@ -26,6 +26,12 @@ async function main() {
   await tokensCollection.createIndex({ contentHash: 1 })
   await tokensCollection.createIndex({ txid: 1, vout: 1 }, { unique: true })
   await tokensCollection.createIndex({ status: 1, createdAt: -1 })
+  // Audit events indexes
+  const auditEventsCollection = db.collection('audit_events')
+  await auditEventsCollection.createIndex({ senderKey: 1, createdAt: -1 })
+  await auditEventsCollection.createIndex({ recipientKey: 1, createdAt: -1 })
+  await auditEventsCollection.createIndex({ txid: 1 })
+  await auditEventsCollection.createIndex({ uhrpUrl: 1 })
   // Identity indexes
   const identitiesCollection = db.collection('identities')
   await identitiesCollection.createIndex({ identityKey: 1 }, { unique: true })

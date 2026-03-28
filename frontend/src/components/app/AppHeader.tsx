@@ -1,30 +1,41 @@
-import { FileLock, Upload, Inbox, FileText, RotateCcw } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
-import { useWallet } from '@/context/WalletContext'
-import { truncateKey } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
+import { useState, useEffect, useCallback } from 'react'
+import { FileLock, ShieldCheck, Inbox, Clock } from 'lucide-react'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import ThemeToggle from '@/components/ThemeToggle'
-import type { Tab } from '@/pages/MainApp'
+import ProfileDropdown from '@/components/app/ProfileDropdown'
+import { useWallet } from '@/context/WalletContext'
+import { queryPendingTokens } from '@/services/tokens'
 
-interface AppHeaderProps {
-  activeTab: Tab
-  onTabChange: (tab: Tab) => void
-}
-
-const tabs: { id: Tab; label: string; icon: typeof Upload }[] = [
-  { id: 'upload', label: 'Upload', icon: Upload },
-  { id: 'inbox', label: 'Inbox', icon: Inbox },
-  { id: 'audit', label: 'Audit', icon: FileText },
+const tabs = [
+  { to: '/app/share', label: 'Share', icon: ShieldCheck },
+  { to: '/app/inbox', label: 'Inbox', icon: Inbox },
+  { to: '/app/audit', label: 'History', icon: Clock },
 ]
 
-export default function AppHeader({ activeTab, onTabChange }: AppHeaderProps) {
-  const { identityKey, profile, resetProfile } = useWallet()
+export default function AppHeader() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const { identityKey } = useWallet()
+  const [inboxCount, setInboxCount] = useState(0)
+
+  const refreshCount = useCallback(async () => {
+    if (!identityKey) return
+    try {
+      const tokens = await queryPendingTokens(identityKey)
+      setInboxCount(tokens.length)
+    } catch {
+      // ignore
+    }
+  }, [identityKey])
+
+  useEffect(() => {
+    refreshCount()
+  }, [refreshCount, location.pathname])
 
   return (
     <header className="dark:bg-slate-950/80 bg-white/80 backdrop-blur-xl border-b dark:border-slate-800/50 border-slate-200 sticky top-0 z-50">
       <div className="max-w-4xl mx-auto px-6 py-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center gap-6">
           <button onClick={() => navigate('/')} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <div className="w-7 h-7 bg-gradient-to-br from-violet-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-violet-sm">
               <FileLock className="w-4 h-4 text-white" />
@@ -32,56 +43,35 @@ export default function AppHeader({ activeTab, onTabChange }: AppHeaderProps) {
             <span className="font-bold text-lg">P2P Medical</span>
           </button>
 
-          <div className="flex items-center gap-3">
-            {profile && (
-              <>
-                <span className="text-sm font-medium dark:text-slate-200 text-slate-700">{profile.name}</span>
-                <span className="text-xs font-medium px-2 py-0.5 rounded-full border dark:border-slate-700 border-slate-300 dark:text-slate-300 text-slate-600 dark:bg-slate-800/50 bg-slate-100">
-                  {profile.role === 'doctor' ? 'Doctor' : 'Patient'}
-                </span>
-              </>
-            )}
-
-            {identityKey && (
-              <span className="text-xs font-mono text-violet-500 dark:text-violet-400/70 bg-violet-500/5 border border-violet-500/10 px-2 py-1 rounded">
-                {truncateKey(identityKey)}
-              </span>
-            )}
-
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs text-slate-400 hover:text-rose-400"
-              onClick={async () => {
-                if (window.confirm('Reset your profile? You can re-register with a different role.')) {
-                  await resetProfile()
+          <nav className="flex gap-1 flex-1">
+            {tabs.map(({ to, label, icon: Icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) =>
+                  `inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
+                    isActive
+                      ? 'bg-violet-500/10 text-violet-500 dark:text-violet-400'
+                      : 'dark:text-slate-500 text-slate-400 dark:hover:text-slate-300 hover:text-slate-600 dark:hover:bg-slate-800/40 hover:bg-slate-100'
+                  }`
                 }
-              }}
-            >
-              <RotateCcw className="w-3 h-3 mr-1" />
-              Reset
-            </Button>
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+                {label === 'Inbox' && inboxCount > 0 && (
+                  <span className="min-w-[1.25rem] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[11px] font-bold flex items-center justify-center leading-none">
+                    {inboxCount}
+                  </span>
+                )}
+              </NavLink>
+            ))}
+          </nav>
 
+          <div className="flex items-center gap-2">
+            <ProfileDropdown />
             <ThemeToggle />
           </div>
         </div>
-
-        <nav className="flex gap-1 mt-3 -mb-px">
-          {tabs.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => onTabChange(id)}
-              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
-                activeTab === id
-                  ? 'bg-violet-500/10 text-violet-500 dark:text-violet-400'
-                  : 'dark:text-slate-500 text-slate-400 dark:hover:text-slate-300 hover:text-slate-600 dark:hover:bg-slate-800/40 hover:bg-slate-100'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {label}
-            </button>
-          ))}
-        </nav>
       </div>
     </header>
   )

@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Search, X, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { searchIdentity, isValidPublicKey, type IdentityResult } from '@/services/identity'
+import { dropdownVariants, ease } from '@/lib/motion'
 
 interface RecipientSearchProps {
   onSelect: (key: string, name?: string) => void
@@ -80,7 +82,12 @@ export default function RecipientSearch({ onSelect, selectedKey, selectedName }:
         <h3 className="font-semibold">Find Recipient</h3>
 
         {selectedKey ? (
-          <div className="flex items-center justify-between bg-violet-500/5 border border-violet-500/20 rounded-lg p-3">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+            className="flex items-center justify-between bg-violet-500/5 border border-violet-500/20 rounded-lg p-3"
+          >
             <div>
               <span className="font-medium">
                 {selectedName || 'Recipient'}
@@ -92,7 +99,7 @@ export default function RecipientSearch({ onSelect, selectedKey, selectedName }:
             <Button variant="ghost" size="icon" onClick={handleClear}>
               <X className="w-4 h-4" />
             </Button>
-          </div>
+          </motion.div>
         ) : (
           <>
             <div className="relative" ref={dropdownRef}>
@@ -111,31 +118,48 @@ export default function RecipientSearch({ onSelect, selectedKey, selectedName }:
                 )}
               </div>
 
-              {showDropdown && results.length > 0 && (
-                <div className="absolute z-50 w-full mt-1 rounded-lg border dark:border-slate-800/60 border-slate-200 dark:bg-slate-900 bg-white shadow-lg overflow-hidden">
-                  {results.map((r) => (
-                    <button
-                      key={r.publicKey}
-                      className="w-full text-left px-3 py-2.5 hover:bg-violet-500/10 transition-colors border-b dark:border-slate-800/40 border-slate-100 last:border-0"
-                      onClick={() => handleSelect(r)}
-                    >
-                      <span className="font-medium text-sm">{r.name}</span>
-                      {r.role && (
-                        <span className="text-xs text-violet-500/50 dark:text-violet-400/50 ml-1.5">{r.role}</span>
-                      )}
-                      <span className="text-xs font-mono text-violet-500 dark:text-violet-400/70 block">
-                        {r.publicKey}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
+              <AnimatePresence>
+                {showDropdown && results.length > 0 && (
+                  <motion.div
+                    variants={dropdownVariants}
+                    initial="hidden"
+                    animate="show"
+                    exit="exit"
+                    className="absolute z-50 w-full mt-1 rounded-lg border dark:border-slate-800/60 border-slate-200 dark:bg-slate-900 bg-white shadow-lg overflow-hidden"
+                  >
+                    {results.map((r, i) => (
+                      <motion.button
+                        key={r.publicKey}
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.05, duration: 0.2, ease }}
+                        className="w-full text-left px-3 py-2.5 hover:bg-violet-500/10 transition-colors border-b dark:border-slate-800/40 border-slate-100 last:border-0"
+                        onClick={() => handleSelect(r)}
+                      >
+                        <span className="font-medium text-sm">{r.name}</span>
+                        {r.role && (
+                          <span className="text-xs text-violet-500/50 dark:text-violet-400/50 ml-1.5">{r.role}</span>
+                        )}
+                        <span className="text-xs font-mono text-violet-500 dark:text-violet-400/70 block">
+                          {r.publicKey}
+                        </span>
+                      </motion.button>
+                    ))}
+                  </motion.div>
+                )}
 
-              {showDropdown && searchQuery.trim().length >= 2 && !searching && results.length === 0 && (
-                <div className="absolute z-50 w-full mt-1 rounded-lg border dark:border-slate-800/60 border-slate-200 dark:bg-slate-900 bg-white shadow-lg px-3 py-3 text-sm dark:text-slate-500 text-slate-400">
-                  No results for "{searchQuery.trim()}"
-                </div>
-              )}
+                {showDropdown && searchQuery.trim().length >= 2 && !searching && results.length === 0 && (
+                  <motion.div
+                    variants={dropdownVariants}
+                    initial="hidden"
+                    animate="show"
+                    exit="exit"
+                    className="absolute z-50 w-full mt-1 rounded-lg border dark:border-slate-800/60 border-slate-200 dark:bg-slate-900 bg-white shadow-lg px-3 py-3 text-sm dark:text-slate-500 text-slate-400"
+                  >
+                    No results for &ldquo;{searchQuery.trim()}&rdquo;
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
