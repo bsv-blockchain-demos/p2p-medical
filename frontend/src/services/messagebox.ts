@@ -24,9 +24,12 @@ export async function notifyRecipient(
     body: JSON.stringify(notification),
   })
 
-  await fetch(`${msgBoxUrl}/sendMessage`, {
+  const res = await fetch(`${msgBoxUrl}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body,
   })
+  if (!res.ok) {
+    throw new Error(`MessageBox error: ${res.status} ${res.statusText}`)
+  }
 }

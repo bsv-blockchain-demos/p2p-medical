@@ -18,12 +18,12 @@ import {
   AlertTriangle,
   Database,
   Eye,
-  FileWarning,
   UserX,
   Wallet,
   Layers,
   Hash,
-  Globe,
+  Code,
+  Network,
   MessageSquare,
   X,
 } from 'lucide-react'
@@ -65,7 +65,6 @@ const problems = [
   { icon: AlertTriangle, label: 'Breaches are routine', detail: '725+ healthcare data breaches in 2023 alone' },
   { icon: UserX, label: 'Accessed without your consent', detail: 'Staff, vendors, and insurers view records freely' },
   { icon: Eye, label: 'No visibility for patients', detail: 'You have no way to know who viewed your files' },
-  { icon: FileWarning, label: 'Sold without your knowledge', detail: 'Records shared with insurers, brokers, and ad networks' },
 ]
 
 const steps = [
@@ -79,13 +78,13 @@ const steps = [
     icon: Send,
     step: '02',
     title: 'Permanent proof it was shared',
-    desc: 'The encrypted file is stored securely, and a blockchain transaction creates a permanent, tamper-proof record of who shared what, with whom, and when.',
+    desc: 'The ciphertext is stored by its content hash — a unique address that only the recipient can use. A blockchain transaction records who shared what, with whom, and when.',
   },
   {
     icon: FileKey,
     step: '03',
     title: 'Doctor verifies and views',
-    desc: "Your doctor's wallet verifies the file hasn't been altered, decrypts it, and records an on-chain attestation — proof the file was received and viewed.",
+    desc: "Only your doctor's wallet holds the key that pairs with the file's content address. It verifies integrity, decrypts, and records an on-chain attestation — proof the file was received intact.",
   },
 ]
 
@@ -104,8 +103,8 @@ const features = [
   },
   {
     icon: User,
-    title: 'You hold the only key',
-    desc: "Your wallet is your identity and your access control. If you don't share a file, nobody sees it. No admin panel, no corporate override.",
+    title: 'Two keys, zero backdoors',
+    desc: "Decrypting a file requires the recipient's wallet key and the file's content address. Without both, the data stays sealed — no admin panel, no corporate override, no exceptions.",
     iconColor: 'text-violet-400',
   },
   {
@@ -117,7 +116,7 @@ const features = [
   {
     icon: Users,
     title: 'Straight to your doctor, no detours',
-    desc: 'Medical files go directly from you to your doctor. No intermediary processes, stores, or even sees the data. The blockchain records proof, not content.',
+    desc: 'Storage providers host only ciphertext — without the wallet key and content address, the data is meaningless to them. The blockchain records proof, not content.',
     iconColor: 'text-violet-400',
   },
   {
@@ -130,62 +129,70 @@ const features = [
 
 const techStack = [
   {
-    icon: Globe,
+    icon: Code,
     label: '@bsv/sdk',
     desc: 'Core SDK',
     title: 'The Foundation',
-    body: 'The BSV SDK is the core toolkit that powers every interaction in the platform. It handles secure identity, digital signatures, and blockchain transactions behind the scenes — so when you share a file, verify a document, or check an audit trail, the heavy lifting is already done. Think of it as the engine under the hood that makes everything work seamlessly.',
+    body: "The BSV SDK is the toolkit that powers everything behind the scenes — identity, signatures, transactions, and file storage.\n\nIt's the engine under the hood. You don't interact with it directly, but nothing works without it.",
+    example: "You tap 'Share' on an X-ray → the SDK signs the transaction with your wallet key, uploads the encrypted file, and mints the on-chain token — all in one step, without you touching any of it.",
   },
   {
     icon: Wallet,
     label: 'BRC-100',
     desc: 'Wallet Standard',
     title: 'Your Digital Identity',
-    body: 'BRC-100 is the wallet standard that gives every user a secure digital identity. Instead of usernames and passwords, your wallet is your login — it proves who you are without exposing personal information. Only you hold the keys, so only you can authorize actions like sharing files or viewing records. No IT department or admin can override your access.',
+    body: 'BRC-100 is the wallet standard that replaces usernames and passwords with a secure digital identity.\n\nYour wallet proves who you are without exposing personal information. Only you hold the keys, so only you can authorize actions.',
+    example: "You click 'Connect Wallet' on the landing page → your BSV wallet authenticates you instantly. No signup form, no email verification. Your wallet IS your account.",
   },
   {
     icon: MessageSquare,
     label: 'MessageBox',
     desc: 'Notifications',
     title: 'Instant Notifications',
-    body: 'MessageBox is the secure notification system that alerts your doctor the moment you share a file. Instead of email (which can be intercepted) or SMS (which is unencrypted), notifications are delivered directly to your doctor\'s wallet. Only the intended recipient can read them, and they arrive in real time — so your doctor knows immediately when something needs attention.',
+    body: 'A secure notification system that delivers messages directly to a wallet — not through email or SMS, which can be intercepted.\n\nOnly the intended recipient can read the notification, and it arrives in real time.',
+    example: 'You share a lab report with Dr. Smith → she immediately sees a new item appear in her Inbox tab with your name, file type, and timestamp. The notification was delivered wallet-to-wallet.',
   },
   {
     icon: Lock,
     label: 'E2E Encryption',
     desc: 'ECDH + AES-256',
     title: 'End-to-End Encryption',
-    body: 'When you share a file, your wallet and your doctor\'s wallet automatically negotiate a private shared key using ECDH (Elliptic Curve Diffie-Hellman) — no passwords, no key servers, no human involvement. That shared key then encrypts your file with AES-256-GCM, the same standard used by banks and governments. The result: your file is sealed on your device and can only be opened by your doctor\'s device. Not even the platform can read it.',
+    body: "Your wallet and your doctor's wallet automatically create a private shared key — no passwords or key servers involved.\n\nThat key encrypts your file with AES-256, the same standard used by banks. The file is sealed on your device and can only be opened on your doctor's device.",
+    example: "You select an MRI and pick Dr. Smith as the recipient → the app derives a shared secret from both wallet keys, encrypts the file in your browser, and uploads only the ciphertext. Dr. Smith's wallet reverses the process to decrypt.",
   },
   {
     icon: Layers,
     label: 'PushDrop',
     desc: 'Token Protocol',
     title: 'Tamper-Proof Records',
-    body: 'Every time a file is shared, a digital token is created on the blockchain — like a notarized receipt that can never be altered. This token records exactly what was shared, by whom, to whom, and when. It\'s permanent, tamper-proof evidence that the exchange happened. If there\'s ever a dispute, the record speaks for itself.',
+    body: "Every time a file is shared, a digital token is created on the blockchain — like a notarized receipt that can never be altered.\n\nIt records what was shared, by whom, to whom, and when. If there's ever a dispute, the record speaks for itself.",
+    example: "After you upload a scan, the app mints a PushDrop token containing the file hash, your key, the doctor's key, and a timestamp. That token shows up in the Audit Trail tab as permanent proof the transfer happened.",
   },
   {
     icon: HardDrive,
     label: 'UHRP',
     desc: 'Content Storage',
     title: 'Secure File Hosting',
-    body: 'UHRP (Universal Hash Resolution Protocol) is how encrypted files are stored and retrieved. Files are identified by their unique fingerprint — not a file name or location. This means if a file is tampered with, the fingerprint won\'t match and the system catches it automatically. Your files can be hosted across multiple providers for redundancy, without any of them being able to read the contents.',
+    body: "Files are identified by a unique fingerprint, not a file name or location. If a file is tampered with, the fingerprint won't match and it's caught automatically.\n\nFiles can be stored across multiple providers for redundancy — none of them can read the contents.",
+    example: "Your encrypted file is uploaded to a UHRP provider and stored under its SHA-256 hash. When Dr. Smith taps 'View', the app fetches that exact hash — if anyone altered the file in storage, the hash won't match and the app rejects it.",
   },
   {
-    icon: Database,
+    icon: Network,
     label: 'Overlay',
     desc: 'Network Layer',
     title: 'The Delivery Network',
-    body: 'The Overlay Network is the communication layer that routes tokens and notifications between patients and doctors. It keeps track of which files are pending, which have been viewed, and maintains the real-time inbox experience. Think of it as the postal system — it delivers the sealed envelope without ever opening it.',
+    body: 'The Overlay Network routes tokens and notifications between patients and doctors. It tracks which files are pending and which have been viewed.\n\nThink of it as the postal system — it delivers the sealed envelope without ever opening it.',
+    example: "Dr. Smith opens the Inbox tab → the overlay queries all tokens addressed to her key with status 'encrypted', and returns them as her pending file list. Once she views one, the overlay updates its status to 'decrypted'.",
   },
   {
     icon: Hash,
     label: 'SHA-256',
     desc: 'Verification',
     title: 'Integrity Guarantee',
-    body: 'SHA-256 is a mathematical fingerprinting technique. Before a file leaves your device, its unique fingerprint is calculated and permanently recorded. When your doctor downloads the file, the fingerprint is recalculated and compared. If even a single byte was changed in transit — by anyone, for any reason — the mismatch is caught instantly. This guarantees your doctor sees exactly what you sent.',
+    body: 'A mathematical fingerprinting technique. Before a file leaves your device, its unique fingerprint is calculated and permanently recorded.\n\nWhen your doctor downloads the file, the fingerprint is recalculated. If even a single byte was changed, the mismatch is caught instantly.',
+    example: "You upload a blood test PDF → the app hashes it before encryption and stores that hash on-chain. When Dr. Smith downloads and decrypts, the app re-hashes the result. A green checkmark confirms the file is identical to what you sent.",
   },
-] as const
+]
 
 export default function LandingPage() {
   const { connect, connecting, connected } = useWallet()
@@ -273,23 +280,23 @@ export default function LandingPage() {
             variants={fadeUp}
           >
             <div className="w-2 h-2 bg-violet-500 rounded-full animate-pulse" />
-            <span className="text-sm font-medium text-violet-500 dark:text-violet-400">Built on BSV Blockchain</span>
+            <span className="text-sm font-medium text-violet-500 dark:text-violet-400">Zero-Access Architecture</span>
           </motion.div>
 
           <motion.h1
             className="text-5xl sm:text-7xl font-extrabold tracking-tight leading-[1.1]"
             variants={fadeUp}
           >
-            <span className="text-gradient-hero">Every Access Recorded.</span>
+            <span className="text-gradient-hero">Not even we can</span>
             <br />
-            <span className="dark:text-white text-slate-900">Every File Protected.</span>
+            <span className="dark:text-white text-slate-900">see your files.</span>
           </motion.h1>
 
           <motion.p
             className="mt-8 text-xl dark:text-slate-400 text-slate-500 max-w-xl mx-auto leading-relaxed"
             variants={fadeUp}
           >
-            Share medical files directly with your doctor. Every view is permanently logged on the blockchain — tamper-proof and transparent.
+            Your files are encrypted before they leave your browser. Reading them back requires your doctor's wallet key and the file's content address — miss either one and the data stays locked. For everyone, including us.
           </motion.p>
 
           <motion.div className="mt-12 flex items-center justify-center gap-4" variants={fadeUp}>
@@ -308,6 +315,10 @@ export default function LandingPage() {
               </Button>
             </motion.div>
           </motion.div>
+
+          <motion.p className="mt-6 text-xs dark:text-slate-500 text-slate-400 tracking-wide" variants={fadeUp}>
+            Need a wallet? Download <a href="https://desktop.bsvb.tech" target="_blank" rel="noopener noreferrer" className="text-violet-500 hover:text-violet-400 underline underline-offset-2">BSV Desktop</a> or <a href="https://mobile.bsvb.tech" target="_blank" rel="noopener noreferrer" className="text-violet-500 hover:text-violet-400 underline underline-offset-2">BSV Browser</a> for mobile.
+          </motion.p>
 
           {/* Trust indicators */}
           <motion.div
@@ -346,7 +357,7 @@ export default function LandingPage() {
               Technology Stack
             </motion.p>
             <motion.h2 className="text-2xl sm:text-3xl font-semibold mb-12" variants={fadeUp}>
-              Powered by BSV infrastructure
+              The architecture behind zero-access
             </motion.h2>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -415,9 +426,20 @@ export default function LandingPage() {
                     </button>
                   </div>
 
-                  <p className="dark:text-slate-300 text-slate-600 leading-relaxed">
-                    {tech.body}
-                  </p>
+                  <div className="dark:text-slate-300 text-slate-600 leading-relaxed space-y-3">
+                    {tech.body.split('\n\n').map((p, i) => (
+                      <p key={i}>{p}</p>
+                    ))}
+                  </div>
+
+                  <div className="mt-5 pt-4 border-t dark:border-slate-800 border-slate-200">
+                    <p className="text-xs font-semibold uppercase tracking-wider dark:text-violet-400 text-violet-500 mb-2">
+                      Example of how it's used in this app
+                    </p>
+                    <p className="text-sm dark:text-slate-400 text-slate-500 leading-relaxed italic">
+                      {tech.example}
+                    </p>
+                  </div>
                 </div>
               </motion.div>
             </motion.div>
@@ -445,7 +467,7 @@ export default function LandingPage() {
               Hospitals, insurers, and third parties access your medical records without asking. You never find out who looked, when, or why.
             </motion.p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {problems.map(({ icon: Icon, label, detail }) => (
                 <motion.div
                   key={label}
@@ -514,7 +536,7 @@ export default function LandingPage() {
               <p className="text-violet-500 dark:text-violet-400 font-semibold text-sm tracking-widest uppercase mb-3">
                 Features
               </p>
-              <h2 className="text-3xl sm:text-4xl font-semibold">Built so only you decide who sees your data</h2>
+              <h2 className="text-3xl sm:text-4xl font-semibold">No master key. No backdoor. No exceptions.</h2>
             </motion.div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

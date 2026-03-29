@@ -196,7 +196,36 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
         <CardContent className="text-sm space-y-3">
           {(step === 'done' || step === 'awaiting-decrypt') && (
             <>
-              <div className="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-1.5 text-sm">
+              <div className="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-1.5 text-xs">
+                <span className="font-medium dark:text-slate-400 text-slate-500 inline-flex items-center gap-1">
+                  Txid
+                  <Tip>
+                    <strong className="block mb-1">Blockchain Transaction</strong>
+                    The on-chain transaction that records this file share. Click to view it on WhatsOnChain — it proves the upload happened at a specific time and cannot be altered retroactively.
+                  </Tip>
+                </span>
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <a
+                    href={`https://whatsonchain.com/tx/${token.txid}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-mono text-xs text-violet-500 dark:text-violet-400 hover:text-violet-600 dark:hover:text-violet-300 hover:underline break-all"
+                  >
+                    {token.txid}
+                  </a>
+                  <CopyBtn text={token.txid} />
+                </span>
+                <span className="font-medium dark:text-slate-400 text-slate-500 inline-flex items-center gap-1">
+                  UHRP URL
+                  <Tip>
+                    <strong className="block mb-1">UHRP (Universal Hash Resolution Protocol)</strong>
+                    A content-addressed URL derived from the file's SHA-256 hash. You can paste it into any UHRP resolver (e.g. https://uhrp-ui.bapp.dev/) to download the encrypted file independently and verify its integrity.
+                  </Tip>
+                </span>
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <span className="font-mono text-xs break-all dark:text-slate-300 text-slate-600">{token.uhrpUrl}</span>
+                  <CopyBtn text={token.uhrpUrl} />
+                </span>
                 <span className="font-medium dark:text-slate-400 text-slate-500 inline-flex items-center gap-1">
                   From
                   <Tip>
@@ -205,7 +234,7 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
                   </Tip>
                 </span>
                 <span className="flex items-center gap-2 min-w-0">
-                  {senderName && <span className="text-sm font-semibold dark:text-slate-200 text-slate-700 shrink-0">{senderName}</span>}
+                  {senderName && <span className="text-xs font-semibold dark:text-slate-200 text-slate-700 shrink-0">{senderName}</span>}
                   <span className="font-mono text-xs dark:text-slate-500 text-slate-400 truncate">{token.senderKey}</span>
                   <CopyBtn text={token.senderKey} />
                 </span>
@@ -231,7 +260,7 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
                     <XCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                   )}
                 </span>
-                <span className="font-medium dark:text-slate-400 text-slate-500">Sent</span>
+                <span className="font-medium dark:text-slate-400 text-slate-500">Time Sent</span>
                 <span className="dark:text-slate-300 text-slate-600">{formatTimestamp(token.timestamp)}</span>
                 {token.metadata.retentionExpiry && (
                   <>
@@ -268,58 +297,26 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
                     </span>
                   </>
                 )}
-              </div>
-              <div className="border-t dark:border-slate-800/50 border-slate-200 pt-3">
-                <div className="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-1.5">
-                  <span className="font-medium dark:text-slate-400 text-slate-500 inline-flex items-center gap-1">
-                    Tx
-                    <Tip>
-                      <strong className="block mb-1">Blockchain Transaction</strong>
-                      The on-chain transaction that records this file share. Click to view it on WhatsOnChain — it proves the upload happened at a specific time and cannot be altered retroactively.
-                    </Tip>
-                  </span>
-                  <span className="flex items-center gap-1.5 min-w-0">
-                    <a
-                      href={`https://whatsonchain.com/tx/${token.txid}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-mono text-xs text-violet-500 dark:text-violet-400 hover:text-violet-600 dark:hover:text-violet-300 hover:underline break-all"
-                    >
-                      {token.txid}
-                    </a>
-                    <CopyBtn text={token.txid} />
-                  </span>
-                  <span className="font-medium dark:text-slate-400 text-slate-500 inline-flex items-center gap-1">
-                    UHRP URL
-                    <Tip>
-                      <strong className="block mb-1">UHRP (Universal Hash Resolution Protocol)</strong>
-                      A content-addressed URL derived from the file's SHA-256 hash. You can paste it into any UHRP resolver (e.g. https://uhrp-ui.bapp.dev/) to download the encrypted file independently and verify its integrity.
-                    </Tip>
-                  </span>
-                  <span className="flex items-center gap-1.5 min-w-0">
-                    <span className="font-mono text-xs break-all dark:text-slate-300 text-slate-600">{token.uhrpUrl}</span>
-                    <CopyBtn text={token.uhrpUrl} />
-                  </span>
-                  <span className="font-medium dark:text-slate-400 text-slate-500">Status</span>
-                  <div className="flex items-center gap-2">
-                    {step === 'done' ? (
-                      <>
-                        <Badge variant="success">DECRYPTED</Badge>
-                        {decryptedAt && (
-                          <span className="dark:text-slate-400 text-slate-500 text-xs">{formatTimestamp(decryptedAt)}</span>
-                        )}
-                      </>
-                    ) : (
-                      <Badge variant="warning">ENCRYPTED</Badge>
-                    )}
-                  </div>
+                <span className="font-medium dark:text-slate-400 text-slate-500">Status</span>
+                <div className="flex items-center gap-2">
+                  {step === 'done' ? (
+                    <>
+                      <Badge variant="success">DECRYPTED</Badge>
+                      {decryptedAt && (
+                        <span className="dark:text-slate-400 text-slate-500 text-xs">{formatTimestamp(decryptedAt)}</span>
+                      )}
+                    </>
+                  ) : (
+                    <Badge variant="warning">ENCRYPTED</Badge>
+                  )}
                 </div>
               </div>
+              <div className="border-t dark:border-slate-800/50 border-slate-200" />
             </>
           )}
 
           {/* Progress steps */}
-          <div className={`${step === 'done' ? 'border-t dark:border-slate-800/50 border-slate-200 pt-3' : ''} space-y-2`}>
+          <div className="space-y-2">
             {[
               { id: 'downloading' as const, label: 'Downloading from UHRP' },
               { id: 'verifying' as const, label: 'Verifying content hash' },

@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Upload } from 'lucide-react'
+import { Upload, FileImage, FileText, File as FileIcon, CheckCircle2, Scan, Heart, Clock } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Select } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
@@ -27,12 +27,18 @@ interface ImageUploadProps {
   metadata: FileMetadata
 }
 
+function getFileIcon(file: File) {
+  if (file.type.startsWith('image/')) return FileImage
+  if (file.type === 'application/pdf' || file.type === 'text/plain') return FileText
+  return FileIcon
+}
+
 export default function ImageUpload({ onFileSelect, file }: ImageUploadProps) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
   const [fileType, setFileType] = useState<FileMetadata['fileType']>('xray')
   const [bodyPart, setBodyPart] = useState('')
-  const [retentionPeriod, setRetentionPeriod] = useState(525600) // 1 Year default
+  const [retentionPeriod, setRetentionPeriod] = useState(10080) // 1 Week default
 
   const processFile = useCallback(
     (f: File) => {
@@ -77,92 +83,121 @@ export default function ImageUpload({ onFileSelect, file }: ImageUploadProps) {
       ? '0 0 15px rgba(139, 92, 246, 0.1)'
       : 'none'
 
+  const SelectedIcon = file ? getFileIcon(file) : null
+
   return (
     <Card>
-      <CardContent className="pt-6 space-y-4">
+      <CardContent className="p-6 space-y-0">
+        {/* Gradient border wrapper */}
         <motion.div
-          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors duration-200 ${
+          className={`rounded-xl p-px bg-gradient-to-br transition-all duration-300 ${
             dragOver
-              ? 'border-violet-500 bg-violet-500/5'
-              : 'dark:border-slate-700 border-slate-300 hover:border-violet-500/30'
+              ? 'from-violet-500/50 via-violet-500/20 to-violet-500/30'
+              : file
+                ? 'from-violet-500/30 via-transparent to-violet-500/15'
+                : 'from-violet-500/20 via-transparent to-violet-500/10'
           }`}
-          animate={{ boxShadow: dropZoneShadow }}
-          transition={{ duration: 0.3 }}
-          onDragOver={(e) => {
-            e.preventDefault()
-            setDragOver(true)
+          animate={{
+            boxShadow: dropZoneShadow,
+            scale: dragOver ? 1.01 : 1,
           }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={handleDrop}
-          onClick={() => fileRef.current?.click()}
+          transition={{ duration: 0.3 }}
         >
-          <input
-            ref={fileRef}
-            type="file"
-            accept={ACCEPTED_TYPES.join(',')}
-            onChange={handleFileInput}
-            className="hidden"
-          />
-          {!file ? (
-            <motion.div
-              animate={{ y: [0, -4, 0] }}
-              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-            >
-              <Upload className="w-8 h-8 dark:text-slate-500 text-slate-400 mx-auto mb-3" />
-            </motion.div>
-          ) : (
-            <Upload className="w-8 h-8 dark:text-slate-500 text-slate-400 mx-auto mb-3" />
-          )}
-          {file ? (
-            <div>
-              <p className="font-medium">{file.name}</p>
-              <p className="text-sm dark:text-slate-400 text-slate-500">
-                {formatFileSize(file.size)} &middot; {file.type}
-              </p>
-            </div>
-          ) : (
-            <div>
-              <p className="font-medium">Drag & drop image or click to browse</p>
-              <p className="text-sm dark:text-slate-500 text-slate-400 mt-1">
-                JPEG, PNG, DICOM &middot; Max 10MB
-              </p>
-            </div>
-          )}
+          <div
+            className={`rounded-[11px] p-10 text-center cursor-pointer transition-colors duration-200 ${
+              file
+                ? 'bg-violet-50 dark:bg-violet-950/20'
+                : 'bg-white dark:bg-slate-900'
+            }`}
+            onDragOver={(e) => {
+              e.preventDefault()
+              setDragOver(true)
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+            onClick={() => fileRef.current?.click()}
+          >
+            <input
+              ref={fileRef}
+              type="file"
+              accept={ACCEPTED_TYPES.join(',')}
+              onChange={handleFileInput}
+              className="hidden"
+            />
+            {file && SelectedIcon ? (
+              <>
+                <div className="relative inline-flex mb-3">
+                  <SelectedIcon className="w-10 h-10 text-violet-500 dark:text-violet-400" />
+                  <CheckCircle2 className="w-4 h-4 text-violet-500 absolute -top-1 -right-1.5" />
+                </div>
+                <p className="text-violet-700 dark:text-violet-300 font-semibold">{file.name}</p>
+                <p className="text-sm dark:text-slate-400 text-slate-500 mt-0.5">
+                  {formatFileSize(file.size)} &middot; {file.type}
+                </p>
+                <p className="text-xs dark:text-slate-500 text-slate-400 mt-2">Click to replace</p>
+              </>
+            ) : (
+              <>
+                <motion.div
+                  animate={{ y: [0, -4, 0] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                >
+                  <Upload className="w-10 h-10 dark:text-slate-500 text-slate-400 mx-auto mb-3" />
+                </motion.div>
+                <p className="font-medium">Drop your file here, or click to browse</p>
+                <p className="text-sm dark:text-slate-500 text-slate-400 mt-1">
+                  JPEG, PNG, DICOM &middot; Max 10MB
+                </p>
+              </>
+            )}
+          </div>
         </motion.div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <label className="text-sm font-medium mb-1 block">File type</label>
-            <Select
-              value={fileType}
-              onChange={(e) => setFileType(e.target.value as FileMetadata['fileType'])}
-            >
-              <option value="xray">X-ray</option>
-              <option value="scan">Scan</option>
-              <option value="report">Report</option>
-              <option value="other">Other</option>
-            </Select>
-          </div>
-          <div>
-            <label className="text-sm font-medium mb-1 block">Body part</label>
-            <Input
-              placeholder="e.g. Chest, Knee, Hand"
-              value={bodyPart}
-              onChange={(e) => setBodyPart(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium mb-1 block">Retention</label>
-            <Select
-              value={String(retentionPeriod)}
-              onChange={(e) => setRetentionPeriod(Number(e.target.value))}
-            >
-              {RETENTION_OPTIONS.map((opt) => (
-                <option key={opt.minutes} value={opt.minutes}>
-                  {opt.label}
-                </option>
-              ))}
-            </Select>
+        {/* Metadata row */}
+        <div className="border-t dark:border-slate-800/60 border-slate-200/60 pt-5 mt-5">
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1.5">
+                <Scan className="w-4 h-4" />
+                File type
+              </label>
+              <Select
+                value={fileType}
+                onChange={(e) => setFileType(e.target.value as FileMetadata['fileType'])}
+              >
+                <option value="xray">X-ray</option>
+                <option value="scan">Scan</option>
+                <option value="report">Report</option>
+                <option value="other">Other</option>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1.5">
+                <Heart className="w-4 h-4" />
+                Body part
+              </label>
+              <Input
+                placeholder="e.g. Chest, Knee, Hand"
+                value={bodyPart}
+                onChange={(e) => setBodyPart(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1.5">
+                <Clock className="w-4 h-4" />
+                Retention
+              </label>
+              <Select
+                value={String(retentionPeriod)}
+                onChange={(e) => setRetentionPeriod(Number(e.target.value))}
+              >
+                {RETENTION_OPTIONS.map((opt) => (
+                  <option key={opt.minutes} value={opt.minutes}>
+                    {opt.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </div>
         </div>
       </CardContent>

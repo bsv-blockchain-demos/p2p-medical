@@ -85,6 +85,16 @@ export const slideInRight: Variants = {
   },
 }
 
+export const successDetailRow: Variants = {
+  hidden: { opacity: 0, y: 8 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease } },
+}
+
+export const successStagger: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.06, delayChildren: 0.1 } },
+}
+
 export const progressStep: Variants = {
   inactive: {
     opacity: 0.5,

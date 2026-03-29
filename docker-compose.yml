@@ -30,6 +30,8 @@ services:
       - MONGO_URL=mongodb://mongodb:27017
       - DB_NAME=p2p_medical
       - BHS_URL=http://bhs:8080
+      - ARC_URL=https://api.taal.com/arc
+      - ARC_API_KEY=${ARC_API_KEY:-}
     depends_on:
       mongodb:
         condition: service_healthy

@@ -9,7 +9,7 @@ import { queryPendingTokens } from '@/services/tokens'
 const tabs = [
   { to: '/app/share', label: 'Share', icon: ShieldCheck },
   { to: '/app/inbox', label: 'Inbox', icon: Inbox },
-  { to: '/app/audit', label: 'History', icon: Clock },
+  { to: '/app/audit', label: 'Audit', icon: Clock },
 ]
 
 export default function AppHeader() {
