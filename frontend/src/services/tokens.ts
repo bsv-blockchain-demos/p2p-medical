@@ -49,7 +49,7 @@ function encodeFields(fields: MedicalTokenFields): number[][] {
 }
 
 async function shareTokenDirect(fields: MedicalTokenFields, txid: string): Promise<void> {
-  await fetch(`${API_URL}/api/tokens/share`, {
+  const res = await fetch(`${API_URL}/api/tokens/share`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -63,6 +63,9 @@ async function shareTokenDirect(fields: MedicalTokenFields, txid: string): Promi
       keyID: fields.keyID,
     }),
   })
+  if (!res.ok) {
+    throw new Error(`Token share failed: ${res.status} ${res.statusText}`)
+  }
 }
 
 export async function mintUploadToken(
@@ -91,41 +94,117 @@ export async function mintUploadToken(
     ],
   })
 
-  // Derive txid: prefer result.txid, fall back to parsing the tx
-  let txid = result.txid || ''
-  let parsedTx: Transaction | null = null
-  if (!txid && result.tx) {
-    parsedTx = Transaction.fromAtomicBEEF(result.tx)
-    txid = parsedTx.id('hex')
+  return result
+}
+
+export async function broadcastToken(
+  fields: MedicalTokenFields,
+  mintResult: CreateActionResult,
+  txid: string,
+): Promise<void> {
+  // 1. Record to backend audit trail + doctor inbox
+  if (txid) {
+    await shareTokenDirect(fields, txid)
   }
 
-  // Primary path: write token directly to backend DB for inbox
-  if (txid) {
+  // 2. Broadcast tx to miners (ARC) + overlay network
+  if (!mintResult.tx) {
+    throw new Error('No transaction in mint result — cannot broadcast')
+  }
+
+  const tx = Transaction.fromAtomicBEEF(mintResult.tx)
+
+  // 2a. Collect ALL ancestor txs from the BEEF that need broadcasting
+  // Walk the full tree: any sourceTransaction without merklePath is unconfirmed
+  // Collect ALL unconfirmed ancestors in topological order (parents before children)
+  const ancestorMap = new Map<string, Transaction>()
+  function collectAncestors(t: Transaction, depth: number) {
+    for (const input of t.inputs) {
+      if (input.sourceTransaction) {
+        const id = input.sourceTransaction.id('hex')
+        const hasMerkle = !!input.sourceTransaction.merklePath
+        console.log(`  ancestor ${id.slice(0, 12)}... merkle=${hasMerkle}`)
+        if (!hasMerkle && !ancestorMap.has(id)) {
+          collectAncestors(input.sourceTransaction, depth + 1) // recurse deeper FIRST
+          ancestorMap.set(id, input.sourceTransaction) // then add this one (topo order)
+        }
+      }
+    }
+  }
+  collectAncestors(tx, 1)
+  const parentHexes = [...ancestorMap.values()].map((t) => t.toHex())
+
+  // Broadcast parents first via GorillaPool (no auth, fast), then broadcast our tx
+  // This ensures nodes have the parent UTXOs before seeing the child tx
+  const broadcastRawToArc = async (hex: string, label: string) => {
     try {
-      await shareTokenDirect(fields, txid)
+      const res = await fetch('https://arc.gorillapool.io/v1/tx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: hex,
+      })
+      const body = await res.json().catch(() => ({})) as Record<string, string>
+      console.log(`${label}: ${res.status}`, body.txStatus || body.txid || '')
     } catch (err) {
-      console.error('Direct token share failed:', err)
+      console.warn(`${label}: failed`, err)
     }
   }
 
-  // Bonus: submit PushDrop TX to overlay (non-blocking)
-  if (result.tx) {
-    try {
-      const tx = parsedTx || Transaction.fromAtomicBEEF(result.tx)
-      await fetch(`${API_URL}/submit`, {
+  // Fire-and-forget: broadcast parents then child
+  void (async () => {
+    // Broadcast unconfirmed parents in topological order (deepest ancestor first)
+    if (parentHexes.length > 0) {
+      console.log(`Broadcasting ${parentHexes.length} ancestor tx(s)...`)
+      for (let i = 0; i < parentHexes.length; i++) {
+        await broadcastRawToArc(parentHexes[i], `Parent[${i}]`)
+      }
+    }
+
+    // Then broadcast our tx to multiple services
+    await Promise.allSettled([
+      // GorillaPool ARC (BEEF binary via octet-stream)
+      fetch('https://arc.gorillapool.io/v1/tx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: new Uint8Array(tx.toBEEF()),
+      }).then(async (res) => {
+        const body = await res.json().catch(() => ({})) as Record<string, string>
+        console.log(`GorillaPool BEEF: ${res.status}`, body.txStatus || body.txid || '')
+      }).catch((err) => console.warn('GorillaPool: failed', err)),
+      // TAAL ARC (BEEF) via backend proxy
+      fetch(`${API_URL}/api/broadcast`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          transaction: tx.toHex(),
-          topics: [TOPIC],
-        }),
-      })
-    } catch (err) {
-      console.error('Overlay submit failed (non-critical):', err)
-    }
-  }
+        body: JSON.stringify({ rawTx: tx.toHexBEEF() }),
+      }).then(async (res) => {
+        const body = await res.json().catch(() => ({})) as Record<string, string>
+        console.log(`TAAL ARC: ${res.status}`, body.txStatus || body.txid || '')
+      }).catch((err) => console.warn('TAAL ARC: failed', err)),
+      // WoC (raw hex — should work now that parents are broadcast)
+      fetch('https://api.whatsonchain.com/v1/bsv/main/tx/raw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ txhex: tx.toHex() }),
+      }).then(async (res) => {
+        if (res.ok) console.log('WoC: broadcast accepted')
+        else console.warn('WoC:', res.status, await res.text().catch(() => ''))
+      }).catch((err) => console.warn('WoC: failed', err)),
+    ])
+  })()
 
-  return result
+  // 2b. Submit to overlay network (awaited — fast, local backend)
+  const overlayRes = await fetch(`${API_URL}/submit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      transaction: tx.toHex(),
+      topics: [TOPIC],
+    }),
+  })
+  if (!overlayRes.ok) {
+    const body = await overlayRes.json().catch(() => ({}))
+    console.error('Overlay submit failed:', body)
+  }
 }
 
 export async function confirmTokenAccess(

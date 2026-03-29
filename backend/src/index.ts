@@ -42,11 +42,38 @@ async function main() {
   // Express app
   const app = express()
   app.use(cors())
+
   app.use(express.json({ limit: '50mb' }))
 
   // Health check
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: Date.now() })
+  })
+
+  // ARC broadcast proxy — frontend can't call ARC directly (CORS)
+  app.post('/api/broadcast', async (req, res) => {
+    try {
+      const { rawTx } = req.body
+      if (!rawTx) return res.status(400).json({ error: 'rawTx required' })
+      const arcUrl = process.env.ARC_URL || 'https://api.taal.com/arc'
+      const arcKey = process.env.ARC_API_KEY || ''
+
+      const arcRes = await fetch(`${arcUrl}/v1/tx`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain',
+          'X-MaxTimeout': '30',
+          'X-WaitFor': 'RECEIVED',
+          ...(arcKey ? { Authorization: `Bearer ${arcKey}` } : {}),
+        },
+        body: rawTx,
+      })
+      const data = await arcRes.json()
+      res.status(arcRes.status).json(data)
+    } catch (err) {
+      console.error('ARC broadcast proxy error:', err)
+      res.status(502).json({ error: 'Failed to reach ARC' })
+    }
   })
 
   // Identity routes
