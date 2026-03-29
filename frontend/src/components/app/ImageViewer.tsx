@@ -307,7 +307,7 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
                       )}
                     </>
                   ) : (
-                    <Badge variant="warning">ENCRYPTED</Badge>
+                    <Badge variant="secondary">ENCRYPTED</Badge>
                   )}
                 </div>
               </div>

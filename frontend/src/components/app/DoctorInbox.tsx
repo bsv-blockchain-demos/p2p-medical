@@ -106,7 +106,7 @@ export default function DoctorInbox() {
                       <span className="text-xs dark:text-slate-500 text-slate-400">
                         {formatTimestamp(token.timestamp)}
                       </span>
-                      <Badge variant={token.status === 'decrypted' ? 'success' : 'warning'}>
+                      <Badge variant={token.status === 'decrypted' ? 'success' : 'secondary'}>
                         {token.status === 'encrypted' ? 'ENCRYPTED' : 'DECRYPTED'}
                       </Badge>
                     </div>

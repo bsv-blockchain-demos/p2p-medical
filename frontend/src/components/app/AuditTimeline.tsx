@@ -282,7 +282,7 @@ export default function AuditTimeline() {
                       </td>
                       <td className="px-2.5 py-2">
                         <Badge
-                          variant={latestStatus === 'decrypted' ? 'success' : 'warning'}
+                          variant={latestStatus === 'decrypted' ? 'success' : 'secondary'}
                         >
                           {latestStatus === 'decrypted' ? 'DECRYPTED' : 'ENCRYPTED'}
                         </Badge>
