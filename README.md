@@ -1,12 +1,12 @@
 # P2P Medical Data Sharing
 
-Peer-to-peer medical file sharing on the BSV blockchain. Patients encrypt files in-browser, share them directly with a chosen doctor, and every access is permanently recorded on-chain.
+**Zero-Access Architecture** — your files are encrypted before they leave your browser. Reading them back requires your doctor's wallet key and the file's content address. Miss either one and the data stays locked — for everyone, including the platform.
 
 ## How It Works
 
-1. **Patient picks a file and a doctor** — the file is encrypted with AES-256-GCM inside the browser using an ECDH shared key derived from both wallets. It never leaves the device unprotected.
-2. **Encrypted upload + on-chain proof** — the ciphertext is stored via UHRP, and a PushDrop token is minted on-chain as permanent, tamper-proof proof of the transfer.
-3. **Doctor verifies and views** — the doctor's wallet verifies the file hash, decrypts it, and records an on-chain attestation that the file was received and viewed.
+1. **Pick a file, pick your doctor** — select a medical file and choose the doctor you want to share it with. The file is encrypted right in your browser — it never leaves your device unprotected.
+2. **Permanent proof it was shared** — the ciphertext is stored by its content hash, a unique address that only the recipient can use. A blockchain transaction records who shared what, with whom, and when.
+3. **Doctor verifies and views** — only your doctor's wallet holds the key that pairs with the file's content address. It verifies integrity, decrypts, and records an on-chain attestation — proof the file was received intact.
 
 Every share and every view is logged in an immutable audit trail — no one can access a file without a permanent record.
 
@@ -42,7 +42,7 @@ Every share and every view is logged in an immutable audit trail — no one can 
 - **Node.js** >= 20
 - **npm** (or your preferred package manager)
 - **MongoDB** — local instance or Docker
-- **BSV Wallet** — a BRC-100 compatible wallet (e.g. MetaNet Desktop) for connecting from the browser
+- **BSV Wallet** — a BRC-100 compatible wallet for connecting from the browser. Download [BSV Desktop](https://desktop.bsvb.tech) or [BSV Browser](https://mobile.bsvb.tech) for mobile.
 
 ## Quick Start (Docker)
 
@@ -110,6 +110,8 @@ cd services/message-box && npm install && npm run dev    # :3003
 | `MONGO_URL` | `mongodb://localhost:27017` | MongoDB connection string |
 | `DB_NAME` | `p2p_medical` | Database name |
 | `BHS_URL` | `http://localhost:8080` | Block Headers Service URL |
+| `ARC_URL` | `https://api.taal.com/arc` | ARC miner endpoint for transaction broadcast |
+| `ARC_API_KEY` | *(empty)* | TAAL ARC authorization key (optional) |
 
 ### Frontend (`frontend/.env`)
 
@@ -138,6 +140,12 @@ cd services/message-box && npm install && npm run dev    # :3003
 | `POST` | `/api/tokens/share` | Share a token + log upload audit event |
 | `POST` | `/api/tokens/access` | Mark as decrypted + log access audit event |
 | `POST` | `/api/tokens/view` | Record view + log view audit event |
+
+### Broadcast
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/broadcast` | Forward BEEF transaction to ARC miners |
 
 ### Overlay (SHIP/SLAP)
 

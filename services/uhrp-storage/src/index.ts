@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import crypto from 'crypto'
 import multer from 'multer'
+import { rateLimit } from 'express-rate-limit'
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 
 const PORT = process.env.PORT || 3002
@@ -22,12 +23,29 @@ const s3 = new S3Client({
 
 const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } })
 
+const HEX_64 = /^[0-9a-f]{64}$/
+
+const limiter = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
+const uploadLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
 const app = express()
 app.use(cors())
 app.use(express.json())
+app.use(limiter)
 
 // Upload file — returns UHRP URL based on content hash
-app.post('/publishFile', upload.single('file'), async (req, res) => {
+app.post('/publishFile', uploadLimiter, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       res.status(400).json({ error: 'No file provided' })
@@ -62,6 +80,10 @@ app.post('/publishFile', upload.single('file'), async (req, res) => {
 app.get('/download/:hash', async (req, res) => {
   try {
     const { hash } = req.params
+    if (!HEX_64.test(hash)) {
+      res.status(400).json({ error: 'Invalid hash format' })
+      return
+    }
     const key = `uhrp/${hash}`
 
     const result = await s3.send(

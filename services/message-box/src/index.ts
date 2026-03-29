@@ -1,10 +1,23 @@
 import express from 'express'
 import cors from 'cors'
+import { rateLimit } from 'express-rate-limit'
 import { MongoClient } from 'mongodb'
 
 const PORT = process.env.PORT || 3003
 const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017'
 const DB_NAME = process.env.DB_NAME || 'message_box'
+
+/** Ensure a value is a plain string — blocks NoSQL injection via objects/arrays */
+function str(v: unknown): string {
+  return typeof v === 'string' ? v : ''
+}
+
+const limiter = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+})
 
 async function main() {
   const mongoClient = new MongoClient(MONGO_URL)
@@ -18,11 +31,14 @@ async function main() {
   const app = express()
   app.use(cors())
   app.use(express.json())
+  app.use(limiter)
 
   // Send a message to a recipient
   app.post('/sendMessage', async (req, res) => {
     try {
-      const { recipient, messageBox, body } = req.body
+      const recipient = str(req.body.recipient)
+      const messageBox = str(req.body.messageBox)
+      const body = req.body.body
 
       if (!recipient || !messageBox || !body) {
         res.status(400).json({ error: 'Missing required fields: recipient, messageBox, body' })
@@ -48,14 +64,15 @@ async function main() {
   // List messages for a recipient
   app.post('/listMessages', async (req, res) => {
     try {
-      const { recipient, messageBox } = req.body
+      const recipient = str(req.body.recipient)
+      const messageBox = str(req.body.messageBox)
 
       if (!recipient) {
         res.status(400).json({ error: 'Missing recipient' })
         return
       }
 
-      const filter: Record<string, unknown> = { recipient }
+      const filter: Record<string, string> = { recipient }
       if (messageBox) filter.messageBox = messageBox
 
       const docs = await messages
@@ -75,13 +92,15 @@ async function main() {
   app.post('/acknowledgeMessage', async (req, res) => {
     try {
       const { messageIds } = req.body
-      if (!messageIds?.length) {
+      if (!Array.isArray(messageIds) || messageIds.length === 0) {
         res.status(400).json({ error: 'Missing messageIds' })
         return
       }
 
+      const safeIds = messageIds.filter((id: unknown) => typeof id === 'string')
+
       await messages.updateMany(
-        { _id: { $in: messageIds } },
+        { _id: { $in: safeIds } },
         { $set: { read: true } },
       )
 

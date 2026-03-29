@@ -1,23 +1,43 @@
 import { Router } from 'express'
+import { rateLimit } from 'express-rate-limit'
 import type { Db } from 'mongodb'
+
+/** Ensure a value is a plain string — blocks NoSQL injection via objects/arrays */
+function str(v: unknown): string {
+  return typeof v === 'string' ? v : ''
+}
+
+/** Ensure a value is a non-negative integer */
+function safeVout(v: unknown): number {
+  const n = typeof v === 'number' ? v : 0
+  return Number.isInteger(n) && n >= 0 ? n : 0
+}
+
+const limiter = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+})
 
 export function createTokenRouter(db: Db) {
   const router = Router()
+  router.use(limiter)
   const collection = db.collection('medical_tokens')
   const auditEvents = db.collection('audit_events')
 
   // Direct token share — primary data path (bypasses PushDrop TX parsing)
   router.post('/share', async (req, res) => {
-    const {
-      txid,
-      eventType,
-      contentHash,
-      uhrpUrl,
-      senderKey,
-      recipientKey,
-      metadata,
-      keyID,
-    } = req.body
+    const txid = str(req.body.txid)
+    const eventType = str(req.body.eventType)
+    const contentHash = str(req.body.contentHash)
+    const uhrpUrl = str(req.body.uhrpUrl)
+    const senderKey = str(req.body.senderKey)
+    const recipientKey = str(req.body.recipientKey)
+    const metadata = req.body.metadata && typeof req.body.metadata === 'object' && !Array.isArray(req.body.metadata)
+      ? req.body.metadata as Record<string, unknown>
+      : {}
+    const keyID = str(req.body.keyID)
 
     if (!txid || !contentHash || !senderKey || !recipientKey) {
       res.status(400).json({ error: 'Missing required fields: txid, contentHash, senderKey, recipientKey' })
@@ -38,7 +58,7 @@ export function createTokenRouter(db: Db) {
             uhrpUrl: uhrpUrl || '',
             senderKey,
             recipientKey,
-            metadata: metadata || {},
+            metadata,
             keyID: keyID || '',
             timestamp: Date.now(),
             spendTxid: null,
@@ -61,7 +81,7 @@ export function createTokenRouter(db: Db) {
         uhrpUrl: uhrpUrl || '',
         contentHash,
         keyID: keyID || '',
-        metadata: metadata || {},
+        metadata,
         createdAt: new Date(),
       })
 
@@ -74,7 +94,9 @@ export function createTokenRouter(db: Db) {
 
   // Mark token as accessed (POC: replaces on-chain spend)
   router.post('/access', async (req, res) => {
-    const { txid, vout, accessedBy } = req.body
+    const txid = str(req.body.txid)
+    const vout = safeVout(req.body.vout)
+    const accessedBy = str(req.body.accessedBy)
 
     if (!txid || !accessedBy) {
       res.status(400).json({ error: 'Missing required fields: txid, accessedBy' })
@@ -82,9 +104,9 @@ export function createTokenRouter(db: Db) {
     }
 
     try {
-      const token = await collection.findOne({ txid, vout: vout ?? 0 })
+      const token = await collection.findOne({ txid, vout })
       const result = await collection.updateOne(
-        { txid, vout: vout ?? 0, status: 'encrypted' },
+        { txid, vout, status: 'encrypted' },
         {
           $set: {
             status: 'decrypted',
@@ -121,7 +143,9 @@ export function createTokenRouter(db: Db) {
 
   // Record a file view (always succeeds, always creates audit event)
   router.post('/view', async (req, res) => {
-    const { txid, vout, accessedBy } = req.body
+    const txid = str(req.body.txid)
+    const vout = safeVout(req.body.vout)
+    const accessedBy = str(req.body.accessedBy)
 
     if (!txid || !accessedBy) {
       res.status(400).json({ error: 'Missing required fields: txid, accessedBy' })
@@ -129,7 +153,7 @@ export function createTokenRouter(db: Db) {
     }
 
     try {
-      const token = await collection.findOne({ txid, vout: vout ?? 0 })
+      const token = await collection.findOne({ txid, vout })
       if (!token) {
         res.status(404).json({ error: 'Token not found' })
         return
@@ -138,7 +162,7 @@ export function createTokenRouter(db: Db) {
       // First-time view also flips status to decrypted
       if (token.status === 'encrypted') {
         await collection.updateOne(
-          { txid, vout: vout ?? 0 },
+          { txid, vout },
           {
             $set: {
               status: 'decrypted',

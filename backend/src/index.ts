@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import { rateLimit } from 'express-rate-limit'
 import { MongoClient } from 'mongodb'
 import dotenv from 'dotenv'
 import { setupOverlay } from './overlay/index.js'
@@ -51,10 +52,14 @@ async function main() {
   })
 
   // ARC broadcast proxy — frontend can't call ARC directly (CORS)
-  app.post('/api/broadcast', async (req, res) => {
+  const broadcastLimiter = rateLimit({ windowMs: 60_000, max: 20, standardHeaders: true, legacyHeaders: false })
+  app.post('/api/broadcast', broadcastLimiter, async (req, res) => {
     try {
-      const { rawTx } = req.body
-      if (!rawTx) return res.status(400).json({ error: 'rawTx required' })
+      const rawTx = typeof req.body.rawTx === 'string' ? req.body.rawTx : ''
+      if (!rawTx) {
+        res.status(400).json({ error: 'rawTx required' })
+        return
+      }
       const arcUrl = process.env.ARC_URL || 'https://api.taal.com/arc'
       const arcKey = process.env.ARC_API_KEY || ''
 

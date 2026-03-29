@@ -1,13 +1,34 @@
 import { Router } from 'express'
+import { rateLimit } from 'express-rate-limit'
 import type { Db } from 'mongodb'
+
+/** Ensure a value is a plain string — blocks NoSQL injection via objects/arrays */
+function str(v: unknown): string {
+  return typeof v === 'string' ? v : ''
+}
+
+/** Escape special regex metacharacters so user input is matched literally */
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+const limiter = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+})
 
 export function createIdentityRouter(db: Db) {
   const router = Router()
+  router.use(limiter)
   const collection = db.collection('identities')
 
   // Register identity directly (fallback when overlay submit isn't available)
   router.post('/register', async (req, res) => {
-    const { identityKey, name, role } = req.body
+    const identityKey = str(req.body.identityKey)
+    const name = str(req.body.name)
+    const role = str(req.body.role)
     if (!identityKey || !name || !role) {
       res.status(400).json({ error: 'Missing identityKey, name, or role' })
       return
@@ -48,7 +69,7 @@ export function createIdentityRouter(db: Db) {
 
   // Fetch single profile by identity key
   router.get('/profile', async (req, res) => {
-    const key = req.query.key as string
+    const key = str(req.query.key)
     if (!key) {
       res.json(null)
       return
@@ -68,7 +89,7 @@ export function createIdentityRouter(db: Db) {
 
   // Delete profile (allows re-registration with a different role)
   router.delete('/profile', async (req, res) => {
-    const { identityKey } = req.body
+    const identityKey = str(req.body.identityKey)
     if (!identityKey) {
       res.status(400).json({ error: 'Missing identityKey' })
       return
@@ -88,8 +109,8 @@ export function createIdentityRouter(db: Db) {
 
   // Search identities by name, optional role filter
   router.get('/search', async (req, res) => {
-    const query = req.query.q as string
-    const role = req.query.role as string | undefined
+    const query = str(req.query.q)
+    const role = str(req.query.role)
 
     if (!query || query.length < 2) {
       res.json([])
@@ -98,7 +119,7 @@ export function createIdentityRouter(db: Db) {
 
     try {
       const filter: Record<string, unknown> = {
-        name: { $regex: query, $options: 'i' },
+        name: { $regex: escapeRegex(query), $options: 'i' },
       }
       if (role) {
         filter.role = role

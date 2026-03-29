@@ -31,6 +31,11 @@ interface LookupQuery {
   txid?: string
 }
 
+/** Ensure a value is a plain string — blocks NoSQL injection via objects/arrays */
+function str(v: unknown): string {
+  return typeof v === 'string' ? v : ''
+}
+
 interface LookupResult {
   type: 'output-list'
   outputs: Array<{
@@ -51,31 +56,38 @@ export class MedicalTokenLookupService {
   }
 
   async query(query: LookupQuery): Promise<LookupResult> {
-    if (query.type === 'audit-events' && query.identityKey) {
-      return this.queryAuditEvents(query.identityKey)
+    const identityKey = str(query.identityKey)
+    const txid = str(query.txid)
+    const recipientKey = str(query.recipientKey)
+    const senderKey = str(query.senderKey)
+    const contentHash = str(query.contentHash)
+    const status = str(query.status)
+
+    if (query.type === 'audit-events' && identityKey) {
+      return this.queryAuditEvents(identityKey)
     }
 
-    if (query.type === 'file-views' && query.txid) {
-      return this.queryFileViews(query.txid)
+    if (query.type === 'file-views' && txid) {
+      return this.queryFileViews(txid)
     }
 
     const filter: Filter<MedicalTokenDoc> = {}
 
-    if (query.type === 'audit' && query.identityKey) {
+    if (query.type === 'audit' && identityKey) {
       // Audit: all tokens where user is sender OR recipient
       filter.$or = [
-        { senderKey: query.identityKey },
-        { recipientKey: query.identityKey },
+        { senderKey: identityKey },
+        { recipientKey: identityKey },
       ]
-    } else if (query.recipientKey) {
-      filter.recipientKey = query.recipientKey
-      if (query.status) {
-        filter.status = query.status as MedicalTokenDoc['status']
+    } else if (recipientKey) {
+      filter.recipientKey = recipientKey
+      if (status === 'encrypted' || status === 'decrypted') {
+        filter.status = status
       }
-    } else if (query.senderKey) {
-      filter.senderKey = query.senderKey
-    } else if (query.contentHash) {
-      filter.contentHash = query.contentHash
+    } else if (senderKey) {
+      filter.senderKey = senderKey
+    } else if (contentHash) {
+      filter.contentHash = contentHash
     }
 
     const docs = await this.collection
