@@ -12,7 +12,6 @@ services:
       - VITE_API_URL=http://localhost:3001
       - VITE_UHRP_URL=http://localhost:3002
       - VITE_UHRP_PROVIDERS=https://nanostore.babbage.systems
-      - VITE_MESSAGEBOX_URL=http://localhost:3003
     depends_on:
       - backend
     volumes:
@@ -109,21 +108,6 @@ services:
         condition: service_completed_successfully
       bhs:
         condition: service_started
-
-  # Message Box Server (placeholder - uses BSV's reference implementation)
-  message-box:
-    build:
-      context: ./services/message-box
-      dockerfile: Dockerfile
-    ports:
-      - "3003:3003"
-    environment:
-      - PORT=3003
-      - MONGO_URL=mongodb://mongodb:27017
-      - DB_NAME=message_box
-    depends_on:
-      mongodb:
-        condition: service_healthy
 
 volumes:
   mongodb_data:

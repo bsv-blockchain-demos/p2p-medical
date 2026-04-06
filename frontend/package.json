@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@bsv/message-box-client": "^2.0.4",
     "@bsv/sdk": "^2.0.13",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",

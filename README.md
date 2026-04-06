@@ -62,7 +62,6 @@ This starts all services:
 | MinIO | 9000 / 9001 | S3-compatible storage (fallback) |
 | Block Headers Service | 8080 | BSV header verification |
 | UHRP Storage | 3002 | Local UHRP server (fallback) |
-| MessageBox | 3003 | Notification service |
 
 Open [http://localhost:3000](http://localhost:3000) and connect your wallet.
 
@@ -90,14 +89,11 @@ npm run dev             # starts on :3000
 
 ### Optional Services
 
-The local UHRP storage and MessageBox servers are only needed if you want to run fully offline. By default, the frontend uses `nanostore.babbage.systems` for UHRP uploads.
+The local UHRP storage server is only needed if you want to run fully offline. By default, the frontend uses `nanostore.babbage.systems` for UHRP uploads. MessageBox notifications use BSVA-hosted infrastructure (`message-box-eu-1.bsvb.tech`) with automatic multi-region fallback.
 
 ```bash
 # UHRP Storage (fallback)
 cd services/uhrp-storage && npm install && npm run dev   # :3002
-
-# MessageBox
-cd services/message-box && npm install && npm run dev    # :3003
 ```
 
 ## Environment Variables
@@ -120,7 +116,6 @@ cd services/message-box && npm install && npm run dev    # :3003
 | `VITE_API_URL` | `http://localhost:3001` | Backend API URL |
 | `VITE_UHRP_URL` | `http://localhost:3002` | Legacy MinIO UHRP (fallback only) |
 | `VITE_UHRP_PROVIDERS` | `https://nanostore.babbage.systems` | Comma-separated UHRP provider URLs |
-| `VITE_MESSAGEBOX_URL` | `http://localhost:3003` | MessageBox server URL |
 
 ## API Routes
 
