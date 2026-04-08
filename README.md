@@ -186,4 +186,4 @@ backend/src/
 
 ## License
 
-Private — not licensed for redistribution.
+This project is licensed under the MIT License - see the LICENSE file for details.
