@@ -11,12 +11,20 @@ import { Badge } from '@/components/ui/badge'
 import { formatFileSize, formatTimestamp, truncateKey } from '@/lib/utils'
 import { ease } from '@/lib/motion'
 
-function Tip({ children }: { children: React.ReactNode }) {
+function Tip({ title, points }: { title: string; points: string[] }) {
   return (
     <span className="relative group/tip inline-flex">
       <Info className="w-3 h-3 text-slate-400 dark:text-slate-500 cursor-help shrink-0" />
-      <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-64 p-3 text-xs leading-relaxed rounded-lg dark:bg-slate-800 bg-slate-900 text-white shadow-lg opacity-0 pointer-events-none group-hover/tip:opacity-100 group-hover/tip:pointer-events-auto transition-opacity z-10">
-        {children}
+      <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-72 p-3 rounded-lg dark:bg-slate-800 bg-slate-900 text-white shadow-lg opacity-0 pointer-events-none group-hover/tip:opacity-100 group-hover/tip:pointer-events-auto transition-opacity z-10">
+        <strong className="block text-xs mb-1.5">{title}</strong>
+        <ul className="space-y-1">
+          {points.map((pt, i) => (
+            <li key={i} className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-300">
+              <span className="text-violet-400 mt-0.5 shrink-0">&#8226;</span>
+              {pt}
+            </li>
+          ))}
+        </ul>
       </span>
     </span>
   )
@@ -67,7 +75,7 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
         setViewNames(names)
       }
     } catch {
-      // Non-critical — don't block the viewer
+      // Non-critical:don't block the viewer
     } finally {
       setViewsLoading(false)
     }
@@ -90,7 +98,7 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
       try {
         // 1. Download encrypted file from UHRP
         setStep('downloading')
-        const encrypted = await downloadFromUHRP(token.uhrpUrl)
+        const encrypted = await downloadFromUHRP(token.uhrpUrl, token.metadata.cdnUrl)
         if (cancelled) return
 
         // 2. Verify content hash
@@ -101,7 +109,7 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
         if (!match) {
           setErrorAt('verifying')
           setStep('error')
-          setError('Content hash mismatch — file may be tampered')
+          setError('Content hash mismatch:file may be tampered')
           return
         }
         if (cancelled) return
@@ -146,9 +154,9 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
       setErrorAt('decrypting')
       setStep('error')
       const raw = err instanceof Error ? err.message : ''
-      // SDK decrypt errors dump JSON — provide a friendly message
+      // SDK decrypt errors dump JSON:provide a friendly message
       if (raw.toLowerCase().includes('decrypt')) {
-        setError('Decryption failed — only the intended recipient can decrypt this file.')
+        setError('Decryption failed:only the intended recipient can decrypt this file.')
       } else {
         setError(raw || 'Failed to decrypt file')
       }
@@ -196,61 +204,78 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
         <CardContent className="text-sm space-y-3">
           {(step === 'done' || step === 'awaiting-decrypt') && (
             <>
-              <div className="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-1.5 text-xs">
-                <span className="font-medium dark:text-slate-400 text-slate-500 inline-flex items-center gap-1">
+              <div className="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-2.5 text-xs">
+                <span className="dark:text-slate-500 text-slate-400 inline-flex items-center gap-1">
                   Txid
-                  <Tip>
-                    <strong className="block mb-1">Blockchain Transaction</strong>
-                    The on-chain transaction that records this file share. Click to view it on WhatsOnChain — it proves the upload happened at a specific time and cannot be altered retroactively.
-                  </Tip>
+                  <Tip
+                    title="Blockchain Transaction"
+                    points={[
+                      'On-chain record of this file share',
+                      'Click to view on WhatsOnChain',
+                      'Proves upload happened at a specific time',
+                      'Cannot be altered retroactively',
+                    ]}
+                  />
                 </span>
                 <span className="flex items-center gap-1.5 min-w-0">
                   <a
                     href={`https://whatsonchain.com/tx/${token.txid}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-mono text-xs text-violet-500 dark:text-violet-400 hover:text-violet-600 dark:hover:text-violet-300 hover:underline break-all"
+                    className="font-mono dark:text-slate-300 text-slate-600 hover:text-violet-600 dark:hover:text-violet-300 hover:underline break-all"
                   >
                     {token.txid}
                   </a>
                   <CopyBtn text={token.txid} />
                 </span>
-                <span className="font-medium dark:text-slate-400 text-slate-500 inline-flex items-center gap-1">
+                <span className="dark:text-slate-500 text-slate-400 inline-flex items-center gap-1">
                   UHRP URL
-                  <Tip>
-                    <strong className="block mb-1">UHRP (Universal Hash Resolution Protocol)</strong>
-                    A content-addressed URL derived from the file's SHA-256 hash. You can paste it into any UHRP resolver (e.g. https://uhrp-ui.bapp.dev/) to download the encrypted file independently and verify its integrity.
-                  </Tip>
+                  <Tip
+                    title="UHRP (Universal Hash Resolution Protocol)"
+                    points={[
+                      'Content-addressed URL from file\'s SHA-256 hash',
+                      'Paste into any UHRP resolver to download independently',
+                      'Verify file integrity against the on-chain hash',
+                    ]}
+                  />
                 </span>
                 <span className="flex items-center gap-1.5 min-w-0">
-                  <span className="font-mono text-xs break-all dark:text-slate-300 text-slate-600">{token.uhrpUrl}</span>
+                  <span className="font-mono break-all dark:text-slate-300 text-slate-600">{token.uhrpUrl}</span>
                   <CopyBtn text={token.uhrpUrl} />
                 </span>
-                <span className="font-medium dark:text-slate-400 text-slate-500 inline-flex items-center gap-1">
+                <span className="dark:text-slate-500 text-slate-400 inline-flex items-center gap-1">
                   From
-                  <Tip>
-                    <strong className="block mb-1">Sender Identity</strong>
-                    The sender's public identity key — a unique cryptographic fingerprint derived from their wallet. This proves who encrypted and shared the file with you.
-                  </Tip>
+                  <Tip
+                    title="Sender Identity"
+                    points={[
+                      'Public identity key from the sender\'s wallet',
+                      'Unique cryptographic fingerprint',
+                      'Proves who encrypted and shared the file',
+                    ]}
+                  />
                 </span>
                 <span className="flex items-center gap-2 min-w-0">
-                  {senderName && <span className="text-xs font-semibold dark:text-slate-200 text-slate-700 shrink-0">{senderName}</span>}
-                  <span className="font-mono text-xs dark:text-slate-500 text-slate-400 truncate">{token.senderKey}</span>
+                  {senderName && <span className="dark:text-slate-300 text-slate-600 shrink-0">{senderName}</span>}
+                  <span className="font-mono dark:text-slate-300 text-slate-600 truncate">{token.senderKey}</span>
                   <CopyBtn text={token.senderKey} />
                 </span>
-                <span className="font-medium dark:text-slate-400 text-slate-500">File Type</span>
+                <span className="dark:text-slate-500 text-slate-400">File Type</span>
                 <span className="dark:text-slate-300 text-slate-600">
                   {token.metadata.fileType}
                   {token.metadata.bodyPart && ` · ${token.metadata.bodyPart}`}
                 </span>
-                <span className="font-medium dark:text-slate-400 text-slate-500">Size</span>
+                <span className="dark:text-slate-500 text-slate-400">Size</span>
                 <span className="dark:text-slate-300 text-slate-600">{formatFileSize(token.metadata.fileSizeBytes)}</span>
-                <span className="font-medium dark:text-slate-400 text-slate-500 inline-flex items-center gap-1">
+                <span className="dark:text-slate-500 text-slate-400 inline-flex items-center gap-1">
                   Hash
-                  <Tip>
-                    <strong className="block mb-1">Integrity Verification</strong>
-                    The file's SHA-256 hash was recorded on-chain when the sender uploaded it. After downloading, the hash is recalculated and compared — if they match, the file has not been altered in transit.
-                  </Tip>
+                  <Tip
+                    title="Integrity Verification"
+                    points={[
+                      'SHA-256 hash recorded on-chain at upload',
+                      'Hash recalculated after download',
+                      'Match confirms file was not altered in transit',
+                    ]}
+                  />
                 </span>
                 <span className="dark:text-slate-300 text-slate-600 inline-flex items-center gap-1.5">
                   SHA-256 {hashMatch ? 'verified' : 'mismatch'}
@@ -260,16 +285,20 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
                     <XCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                   )}
                 </span>
-                <span className="font-medium dark:text-slate-400 text-slate-500">Time Sent</span>
+                <span className="dark:text-slate-500 text-slate-400">Time Sent</span>
                 <span className="dark:text-slate-300 text-slate-600">{formatTimestamp(token.timestamp)}</span>
                 {token.metadata.retentionExpiry && (
                   <>
-                    <span className="font-medium dark:text-slate-400 text-slate-500 inline-flex items-center gap-1">
+                    <span className="dark:text-slate-500 text-slate-400 inline-flex items-center gap-1">
                       Expires
-                      <Tip>
-                        <strong className="block mb-1">Storage Expiry</strong>
-                        The date the sender's paid hosting period ends. After this, UHRP providers may remove the encrypted file. The sender can extend retention by re-uploading before expiry.
-                      </Tip>
+                      <Tip
+                        title="Storage Expiry"
+                        points={[
+                          'Date the paid hosting period ends',
+                          'UHRP providers may remove the file after this',
+                          'Sender can extend by re-uploading before expiry',
+                        ]}
+                      />
                     </span>
                     <span className="dark:text-slate-300 text-slate-600">
                       {new Date(token.metadata.retentionExpiry).toLocaleString('en-US', {
@@ -285,25 +314,39 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
                 )}
                 {token.metadata.providerCount && (
                   <>
-                    <span className="font-medium dark:text-slate-400 text-slate-500 inline-flex items-center gap-1">
-                      UHRP Hosts
-                      <Tip>
-                        <strong className="block mb-1">Storage Providers</strong>
-                        The number of independent UHRP nodes hosting the encrypted file. More providers means better availability — if one goes offline, others still serve the data.
-                      </Tip>
+                    <span className="dark:text-slate-500 text-slate-400 inline-flex items-center gap-1">
+                      Stored
+                      <Tip
+                        title="Storage Providers"
+                        points={[
+                          'Number of independent UHRP nodes hosting the file',
+                          'More providers = better availability',
+                          'If one goes offline, others still serve the data',
+                        ]}
+                      />
                     </span>
                     <span className="dark:text-slate-300 text-slate-600">
                       {token.metadata.providerCount} provider{token.metadata.providerCount !== 1 ? 's' : ''}
+                      {(() => {
+                        const urls = token.metadata.providerUrls
+                        if (urls && urls.length > 0) {
+                          return <span>{': '}{urls.join(', ')}</span>
+                        }
+                        if (token.metadata.cdnUrl) {
+                          return <span>{': '}{new URL(token.metadata.cdnUrl).origin}</span>
+                        }
+                        return null
+                      })()}
                     </span>
                   </>
                 )}
-                <span className="font-medium dark:text-slate-400 text-slate-500">Status</span>
+                <span className="dark:text-slate-500 text-slate-400">Status</span>
                 <div className="flex items-center gap-2">
                   {step === 'done' ? (
                     <>
                       <Badge variant="success">DECRYPTED</Badge>
                       {decryptedAt && (
-                        <span className="dark:text-slate-400 text-slate-500 text-xs">{formatTimestamp(decryptedAt)}</span>
+                        <span className="dark:text-slate-400 text-slate-400 text-xs">{formatTimestamp(decryptedAt)}</span>
                       )}
                     </>
                   ) : (
@@ -385,7 +428,7 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
             })}
           </div>
 
-          {/* Decrypt button — shown after download + verify complete */}
+          {/* Decrypt button:shown after download + verify complete */}
           {step === 'awaiting-decrypt' && (
             <div className="flex justify-center pt-2">
               <Button onClick={handleDecrypt} className="gap-2">

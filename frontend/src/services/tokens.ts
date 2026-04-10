@@ -22,6 +22,8 @@ export interface MedicalTokenFields {
     fileSizeBytes: number
     retentionExpiry?: number
     providerCount?: number
+    providerUrls?: string[]
+    cdnUrl?: string
   }
   keyID: string
 }
@@ -338,6 +340,58 @@ export async function spendTokenAndMintReceipt(
   }
 
   return result
+}
+
+export async function querySentTokens(
+  senderKey: string,
+): Promise<MedicalToken[]> {
+  const res = await fetch(`${API_URL}/lookup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      service: 'ls_medical_token',
+      query: { senderKey },
+    }),
+  })
+
+  if (!res.ok) return []
+
+  const data = await res.json()
+  if (data.type !== 'output-list' || !data.outputs) return []
+
+  return data.outputs.map((output: Record<string, unknown>) => ({
+    eventType: (output.eventType as string) || 'upload',
+    contentHash: (output.contentHash as string) || '',
+    uhrpUrl: (output.uhrpUrl as string) || '',
+    senderKey: (output.senderKey as string) || senderKey,
+    recipientKey: (output.recipientKey as string) || '',
+    metadata: (output.metadata as MedicalToken['metadata']) || {
+      fileType: 'other',
+      mimeType: 'application/octet-stream',
+      fileSizeBytes: 0,
+    },
+    keyID: (output.keyID as string) || '',
+    txid: (output.txid as string) || '',
+    vout: (output.outputIndex as number) ?? 0,
+    status: (output.status as string) || 'encrypted',
+    timestamp: (output.timestamp as number) || Date.now(),
+  }))
+}
+
+export async function updateTokenCdnUrl(
+  txid: string,
+  senderKey: string,
+  cdnUrl: string,
+): Promise<void> {
+  const res = await fetch(`${API_URL}/api/tokens/${encodeURIComponent(txid)}/cdn-url`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ senderKey, cdnUrl }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Failed to update CDN URL' }))
+    throw new Error(err.error || 'Failed to update CDN URL')
+  }
 }
 
 export async function queryPendingTokens(

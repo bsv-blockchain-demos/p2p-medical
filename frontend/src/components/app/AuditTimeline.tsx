@@ -14,13 +14,13 @@ type FilterType = 'all' | 'encrypted' | 'decrypted'
 type FilterPeriod = '7' | '30' | '90' | 'all'
 
 const COLUMNS = [
-  { key: 'uhrp', label: 'UHRP URL' },
-  { key: 'counterparty', label: 'COUNTERPARTY' },
-  { key: 'name', label: 'SENT FROM' },
-  { key: 'txid', label: 'TXID' },
-  { key: 'file', label: 'FILE TYPE' },
-  { key: 'date', label: 'TIME SENT (UTC)' },
-  { key: 'status', label: 'STATUS' },
+  { key: 'uhrp', label: 'UHRP', width: 'w-[13%]' },
+  { key: 'name', label: 'FROM', width: 'w-[12%]' },
+  { key: 'sentTo', label: 'TO', width: 'w-[12%]' },
+  { key: 'txid', label: 'TXID', width: 'w-[13%]' },
+  { key: 'file', label: 'FILE', width: 'w-[14%]' },
+  { key: 'date', label: 'DATE (UTC)', width: 'w-[20%]' },
+  { key: 'status', label: 'STATUS', width: 'w-[16%]' },
 ] as const
 
 interface DeduplicatedEntry {
@@ -28,15 +28,15 @@ interface DeduplicatedEntry {
   latestStatus: 'encrypted' | 'decrypted'
 }
 
-function formatDateUTC(ts: number): string {
-  return new Date(ts).toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'UTC',
-  })
+function formatDateCompact(ts: number): string {
+  const d = new Date(ts)
+  const mon = d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })
+  const day = d.getUTCDate()
+  const h = d.getUTCHours()
+  const m = String(d.getUTCMinutes()).padStart(2, '0')
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  const h12 = h % 12 || 12
+  return `${mon} ${day}, ${d.getUTCFullYear()}, ${h12}:${m} ${ampm}`
 }
 
 function auditEventToToken(entry: AuditEvent, status: 'encrypted' | 'decrypted'): MedicalToken {
@@ -72,11 +72,13 @@ export default function AuditTimeline() {
       const result = await queryAuditTrail(identityKey)
       setEntries(result)
 
-      // Resolve counterparty names
-      const counterpartyKeys = result.map((e) =>
-        getCounterpartyKey(e, identityKey || ''),
-      )
-      const resolved = await resolveNames(counterpartyKeys)
+      // Resolve counterparty + recipient names
+      const keysToResolve = new Set<string>()
+      for (const e of result) {
+        keysToResolve.add(getCounterpartyKey(e, identityKey || ''))
+        if (e.recipientKey && e.recipientKey !== identityKey) keysToResolve.add(e.recipientKey)
+      }
+      const resolved = await resolveNames(Array.from(keysToResolve))
       setNames(resolved)
     } catch (err) {
       console.error('Failed to fetch audit trail:', err)
@@ -187,13 +189,13 @@ export default function AuditTimeline() {
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full table-fixed text-xs">
               <thead>
                 <tr className="border-b-2 border-violet-500/20">
                   {COLUMNS.map((col) => (
                     <th
                       key={col.key}
-                      className="px-2.5 py-2 text-left text-[10px] font-semibold tracking-wider uppercase dark:text-slate-400 text-slate-500"
+                      className={`px-1.5 py-2 text-left text-[10px] font-semibold tracking-wider uppercase dark:text-slate-400 text-slate-500 ${col.width}`}
                     >
                       {col.label}
                     </th>
@@ -203,14 +205,14 @@ export default function AuditTimeline() {
               <tbody>
                 {loading && (
                   <tr>
-                    <td colSpan={COLUMNS.length} className="px-2.5 py-8 text-center dark:text-slate-500 text-slate-400">
+                    <td colSpan={COLUMNS.length} className="px-1.5 py-8 text-center dark:text-slate-500 text-slate-400">
                       Loading...
                     </td>
                   </tr>
                 )}
                 {!loading && filtered.length === 0 && (
                   <tr>
-                    <td colSpan={COLUMNS.length} className="px-2.5 py-8 text-center dark:text-slate-500 text-slate-400">
+                    <td colSpan={COLUMNS.length} className="px-1.5 py-8 text-center dark:text-slate-500 text-slate-400">
                       No audit entries found.
                     </td>
                   </tr>
@@ -227,7 +229,7 @@ export default function AuditTimeline() {
                       transition={{ delay: i * 0.03 }}
                       className="border-b dark:border-slate-800/50 border-slate-100 last:border-0 hover:dark:bg-slate-800/30 hover:bg-slate-50 transition-colors"
                     >
-                      <td className="px-2.5 py-2">
+                      <td className="px-1.5 py-2 truncate">
                         <span className="inline-flex items-center gap-0.5">
                           {entry.uhrpUrl ? (
                             <button
@@ -235,7 +237,7 @@ export default function AuditTimeline() {
                               className="font-mono text-violet-500 dark:text-violet-400 hover:text-violet-600 dark:hover:text-violet-300 hover:underline text-left"
                               title={entry.uhrpUrl}
                             >
-                              {truncateKey(entry.uhrpUrl, 5)}
+                              {truncateKey(entry.uhrpUrl, 3)}
                             </button>
                           ) : (
                             <span className="font-mono dark:text-slate-500 text-slate-400">-</span>
@@ -243,20 +245,17 @@ export default function AuditTimeline() {
                           {entry.uhrpUrl && <CopyButton text={entry.uhrpUrl} />}
                         </span>
                       </td>
-                      <td className="px-2.5 py-2">
-                        <span className="inline-flex items-center gap-0.5">
-                          <span className="font-mono dark:text-slate-300 text-slate-600" title={cpKey}>
-                            {truncateKey(cpKey, 4)}
-                          </span>
-                          {cpKey && <CopyButton text={cpKey} />}
-                        </span>
-                      </td>
-                      <td className="px-2.5 py-2 dark:text-slate-300 text-slate-600 whitespace-nowrap">
+                      <td className="px-1.5 py-2 dark:text-slate-300 text-slate-600 truncate" title={entry.senderKey === identityKey ? 'You' : cpName}>
                         {entry.senderKey === identityKey
                           ? 'You'
                           : cpName || '—'}
                       </td>
-                      <td className="px-2.5 py-2">
+                      <td className="px-1.5 py-2 dark:text-slate-300 text-slate-600 truncate" title={entry.recipientKey === identityKey ? 'You' : (names.get(entry.recipientKey) || entry.recipientKey)}>
+                        {entry.recipientKey === identityKey
+                          ? 'You'
+                          : names.get(entry.recipientKey) || truncateKey(entry.recipientKey, 3)}
+                      </td>
+                      <td className="px-1.5 py-2 truncate">
                         <span className="inline-flex items-center gap-0.5">
                           <a
                             href={`https://whatsonchain.com/tx/${entry.txid}`}
@@ -265,22 +264,21 @@ export default function AuditTimeline() {
                             className="font-mono text-violet-500 dark:text-violet-400 hover:text-violet-600 dark:hover:text-violet-300 hover:underline"
                             title={entry.txid}
                           >
-                            {truncateKey(entry.txid, 4)}
+                            {truncateKey(entry.txid, 3)}
                           </a>
                           {entry.txid && <CopyButton text={entry.txid} />}
                         </span>
                       </td>
-                      <td className="px-2.5 py-2 dark:text-slate-300 text-slate-600 whitespace-nowrap">
+                      <td className="px-1.5 py-2 dark:text-slate-300 text-slate-600 truncate">
                         {entry.metadata.fileType}
-                        {entry.metadata.bodyPart && ` · ${entry.metadata.bodyPart}`}
                         <span className="dark:text-slate-500 text-slate-400 ml-1">
                           {formatFileSize(entry.metadata.fileSizeBytes)}
                         </span>
                       </td>
-                      <td className="px-2.5 py-2 dark:text-slate-300 text-slate-600 whitespace-nowrap">
-                        {formatDateUTC(entry.timestamp)}
+                      <td className="px-1.5 py-2 dark:text-slate-300 text-slate-600 whitespace-nowrap">
+                        {formatDateCompact(entry.timestamp)}
                       </td>
-                      <td className="px-2.5 py-2">
+                      <td className="px-1.5 py-2">
                         <Badge
                           variant={latestStatus === 'decrypted' ? 'success' : 'secondary'}
                         >

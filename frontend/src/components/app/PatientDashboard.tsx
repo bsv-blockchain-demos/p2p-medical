@@ -1,16 +1,16 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useWallet } from '@/context/WalletContext'
 import RecipientSearch from './RecipientSearch'
 import ImageUpload from './ImageUpload'
 import UploadProgress from './UploadProgress'
 import { encryptForRecipient, hashContent } from '@/services/crypto'
-import { uploadToUHRP } from '@/services/storage'
-import { mintUploadToken, broadcastToken, type MedicalTokenFields } from '@/services/tokens'
+import { uploadToUHRP, resolveCdnUrl, publishUhrpAdvertisement } from '@/services/storage'
+import { mintUploadToken, broadcastToken, querySentTokens, updateTokenCdnUrl, type MedicalTokenFields } from '@/services/tokens'
 import { Transaction } from '@bsv/sdk'
 import { notifyRecipient } from '@/services/messagebox'
 import { getIdentityKey } from '@/services/wallet'
 import { Button } from '@/components/ui/button'
-import { Lock } from 'lucide-react'
+import { Lock, ShieldCheck, Database, Eye } from 'lucide-react'
 
 export type UploadStep =
   | 'idle'
@@ -29,6 +29,7 @@ export interface UploadResult {
   timestamp: number
   retentionExpiry: number
   providerCount: number
+  providerNames: string[]
 }
 
 export interface FileMetadata {
@@ -38,6 +39,7 @@ export interface FileMetadata {
   mimeType: string
   fileSizeBytes: number
   retentionPeriod: number // minutes
+  selectedProviders?: string[]
 }
 
 export default function PatientDashboard() {
@@ -74,6 +76,45 @@ export default function PatientDashboard() {
     setMetadata(meta)
   }, [])
 
+  // Backfill CDN URLs for sender's existing tokens that are missing them
+  useEffect(() => {
+    if (!identityKey) return
+    let cancelled = false
+
+    void (async () => {
+      try {
+        const tokens = await querySentTokens(identityKey)
+        const missing = tokens.filter((t) => t.uhrpUrl && !t.metadata?.cdnUrl)
+        if (missing.length === 0) return
+        console.log(`[CDN backfill] ${missing.length} token(s) missing cdnUrl`)
+
+        for (const token of missing) {
+          if (cancelled) break
+          try {
+            console.log(`[CDN backfill] Resolving CDN URL for txid ${token.txid}...`)
+            const cdnUrl = await resolveCdnUrl(token.uhrpUrl)
+            if (cdnUrl && !cancelled) {
+              await updateTokenCdnUrl(token.txid, identityKey, cdnUrl)
+              console.log(`[CDN backfill] Updated CDN URL for txid ${token.txid}`)
+              // Also publish UHRP advertisement so file is publicly resolvable
+              void publishUhrpAdvertisement(
+                token.uhrpUrl, cdnUrl, token.metadata?.fileSizeBytes || 0,
+                token.metadata?.retentionExpiry || (Date.now() + 365 * 24 * 60 * 60 * 1000),
+              ).then(() => console.log(`[CDN backfill] UHRP ad published for txid ${token.txid}`))
+                .catch((e) => console.warn(`[CDN backfill] UHRP ad failed for txid ${token.txid}:`, e))
+            }
+          } catch (err) {
+            console.warn(`[CDN backfill] Failed for txid ${token.txid}:`, err)
+          }
+        }
+      } catch (err) {
+        console.warn('[CDN backfill] Failed to query sent tokens:', err)
+      }
+    })()
+
+    return () => { cancelled = true }
+  }, [identityKey])
+
   const handleSend = async () => {
     if (!file || !recipientKey || !identityKey) return
 
@@ -102,10 +143,21 @@ export default function PatientDashboard() {
         ciphertext,
         metadata.mimeType || 'application/octet-stream',
         metadata.retentionPeriod,
+        metadata.selectedProviders,
       )
       const uhrpUrl = storageResult.uhrpUrl
 
-      // 5. Mint PushDrop token
+      // 5a. Publish UHRP advertisement to public overlay (fire-and-forget)
+      if (storageResult.cdnUrl) {
+        void publishUhrpAdvertisement(
+          uhrpUrl,
+          storageResult.cdnUrl,
+          ciphertext.byteLength,
+          storageResult.retentionExpiry,
+        ).catch((err) => console.warn('[UHRP ad] Failed to publish:', err))
+      }
+
+      // 5b. Mint PushDrop token
       updateStep('minting')
       const senderKey = await getIdentityKey()
       const tokenFields: MedicalTokenFields = {
@@ -122,6 +174,8 @@ export default function PatientDashboard() {
           fileSizeBytes: metadata.fileSizeBytes,
           retentionExpiry: storageResult.retentionExpiry,
           providerCount: storageResult.providerCount,
+          providerUrls: storageResult.providerUrls,
+          cdnUrl: storageResult.cdnUrl,
         },
         keyID,
       }
@@ -153,6 +207,7 @@ export default function PatientDashboard() {
         timestamp: Date.now(),
         retentionExpiry: storageResult.retentionExpiry,
         providerCount: storageResult.providerCount,
+        providerNames: storageResult.providerUrls,
       })
     } catch (err) {
       setFailedStep(stepRef.current)
@@ -171,12 +226,29 @@ export default function PatientDashboard() {
 
       <ImageUpload onFileSelect={handleFileSelect} file={file} metadata={metadata} />
 
+      {canSend && (
+        <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 dark:bg-violet-500/10 px-4 py-3.5 space-y-2.5 transition-all duration-300 hover:border-violet-500/40 hover:bg-violet-500/10 dark:hover:bg-violet-500/15 hover:shadow-md hover:shadow-violet-500/10">
+          <div className="flex items-start gap-2.5 text-sm text-muted-foreground">
+            <ShieldCheck className="w-4 h-4 mt-0.5 shrink-0 text-violet-500" />
+            <span>Encrypted exclusively for the selected recipient</span>
+          </div>
+          <div className="flex items-start gap-2.5 text-sm text-muted-foreground">
+            <Database className="w-4 h-4 mt-0.5 shrink-0 text-violet-500" />
+            <span>Stored on tamper-proof blockchain storage (UHRP)</span>
+          </div>
+          <div className="flex items-start gap-2.5 text-sm text-muted-foreground">
+            <Eye className="w-4 h-4 mt-0.5 shrink-0 text-violet-500" />
+            <span>Only the recipient can decrypt and view the file</span>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-center">
         <Button
           size="lg"
           onClick={handleSend}
           disabled={!canSend}
-          className="gap-2"
+          className="gap-2 px-12"
         >
           <Lock className="w-4 h-4" />
           Share Securely

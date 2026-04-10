@@ -4,8 +4,8 @@
 
 ## How It Works
 
-1. **Pick a file, pick your doctor** — select a medical file and choose the doctor you want to share it with. The file is encrypted right in your browser — it never leaves your device unprotected.
-2. **Permanent proof it was shared** — the ciphertext is stored by its content hash, a unique address that only the recipient can use. A blockchain transaction records who shared what, with whom, and when.
+1. **Pick a file, pick your doctor** — select a medical file and choose the doctor you want to share it with. Choose which UHRP storage providers to upload to for redundancy. The file is encrypted right in your browser — it never leaves your device unprotected.
+2. **Permanent proof it was shared** — the ciphertext is stored by its content hash across one or more UHRP providers. A blockchain transaction records who shared what, with whom, when, and where it's hosted.
 3. **Doctor verifies and views** — only your doctor's wallet holds the key that pairs with the file's content address. It verifies integrity, decrypts, and records an on-chain attestation — proof the file was received intact.
 
 Every share and every view is logged in an immutable audit trail — no one can access a file without a permanent record.
@@ -26,16 +26,17 @@ Every share and every view is logged in an immutable audit trail — no one can 
 ┌────────────┐         ┌────────────┐
 │  UHRP      │         │  BSV       │
 │  Storage   │         │  Blockchain│
+│  (multi)   │         │            │
 └────────────┘         └────────────┘
 ```
 
 | Layer | Tech | Purpose |
 |-------|------|---------|
-| Frontend | Vite, React 18, TypeScript, Tailwind, Framer Motion | UI, in-browser encryption, wallet interaction |
+| Frontend | Vite, React 18, TypeScript, Tailwind, Framer Motion | UI, in-browser encryption, wallet interaction, provider selection |
 | Backend | Express, MongoDB, `@bsv/overlay` | Token storage, audit events, overlay engine (SHIP/SLAP) |
 | Blockchain | `@bsv/sdk`, PushDrop tokens, BRC-100 wallet | Identity, on-chain proof, key derivation, encryption |
-| Storage | UHRP via `nanostore.babbage.systems` | Content-addressed encrypted file hosting |
-| Messaging | MessageBox | Real-time notifications to doctor's wallet |
+| Storage | UHRP — Go UHRP (primary), Nanostore (secondary) | Multi-provider content-addressed encrypted file hosting |
+| Messaging | MessageBox (BSVA-hosted, multi-region) | Real-time notifications to doctor's wallet |
 
 ## Prerequisites
 
@@ -59,9 +60,7 @@ This starts all services:
 | Frontend | 3000 | Vite dev server |
 | Backend | 3001 | Express API + overlay engine |
 | MongoDB | 27017 | Database |
-| MinIO | 9000 / 9001 | S3-compatible storage (fallback) |
 | Block Headers Service | 8080 | BSV header verification |
-| UHRP Storage | 3002 | Local UHRP server (fallback) |
 
 Open [http://localhost:3000](http://localhost:3000) and connect your wallet.
 
@@ -89,7 +88,7 @@ npm run dev             # starts on :3000
 
 ### Optional Services
 
-The local UHRP storage server is only needed if you want to run fully offline. By default, the frontend uses `nanostore.babbage.systems` for UHRP uploads. MessageBox notifications use BSVA-hosted infrastructure (`message-box-eu-1.bsvb.tech`) with automatic multi-region fallback.
+The local UHRP storage server is only needed if you want to run fully offline. By default, the frontend uses `go-uhrp-us-1.bsvblockchain.tech` as the primary UHRP provider, with `nanostore.babbage.systems` available as a secondary option. Users can select one or both providers at upload time. MessageBox notifications use BSVA-hosted infrastructure with automatic multi-region fallback (EU, US, AP).
 
 ```bash
 # UHRP Storage (fallback)
@@ -114,8 +113,7 @@ cd services/uhrp-storage && npm install && npm run dev   # :3002
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `VITE_API_URL` | `http://localhost:3001` | Backend API URL |
-| `VITE_UHRP_URL` | `http://localhost:3002` | Legacy MinIO UHRP (fallback only) |
-| `VITE_UHRP_PROVIDERS` | `https://nanostore.babbage.systems` | Comma-separated UHRP provider URLs |
+| `VITE_UHRP_PROVIDERS` | `https://go-uhrp-us-1.bsvblockchain.tech` | Comma-separated UHRP provider URLs (user selects at upload time) |
 
 ## API Routes
 
@@ -135,6 +133,7 @@ cd services/uhrp-storage && npm install && npm run dev   # :3002
 | `POST` | `/api/tokens/share` | Share a token + log upload audit event |
 | `POST` | `/api/tokens/access` | Mark as decrypted + log access audit event |
 | `POST` | `/api/tokens/view` | Record view + log view audit event |
+| `PATCH` | `/api/tokens/:txid/cdn-url` | Backfill CDN URL for existing tokens (sender only) |
 
 ### Broadcast
 
@@ -159,16 +158,17 @@ frontend/src/
 ├── components/app/
 │   ├── PatientDashboard.tsx     # Upload flow orchestrator
 │   ├── DoctorInbox.tsx          # Pending encrypted tokens
-│   ├── AuditTimeline.tsx        # Immutable event log
-│   ├── ImageViewer.tsx          # Download, verify, decrypt, display
-│   ├── ImageUpload.tsx          # File picker + metadata
+│   ├── AuditTimeline.tsx        # Audit trail (FROM, TO, TXID, FILE, DATE, STATUS)
+│   ├── ImageViewer.tsx          # Download, verify, decrypt, display (shared by Inbox + Audit)
+│   ├── ImageUpload.tsx          # File picker, metadata, UHRP provider selection
+│   ├── UploadProgress.tsx       # Step-by-step upload progress + success details
 │   ├── RecipientSearch.tsx      # Doctor lookup
 │   └── RegisterProfile.tsx      # First-time registration
 ├── services/
 │   ├── wallet.ts                # WalletClient singleton
 │   ├── crypto.ts                # ECDH encryption/decryption
-│   ├── storage.ts               # UHRP upload/download
-│   ├── tokens.ts                # Token minting + audit queries
+│   ├── storage.ts               # UHRP multi-provider upload/download + UHRP advertisement
+│   ├── tokens.ts                # Token minting, audit queries, CDN URL backfill
 │   └── messagebox.ts            # Doctor notifications
 └── context/
     └── WalletContext.tsx         # Auth + profile state
