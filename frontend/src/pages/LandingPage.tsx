@@ -280,23 +280,23 @@ export default function LandingPage() {
             variants={fadeUp}
           >
             <div className="w-2 h-2 bg-violet-500 rounded-full animate-pulse" />
-            <span className="text-sm font-medium text-violet-500 dark:text-violet-400">Zero-Access Architecture</span>
+            <span className="text-sm font-medium text-violet-500 dark:text-violet-400">Peer-to-Peer Medical Data</span>
           </motion.div>
 
           <motion.h1
             className="text-5xl sm:text-7xl font-extrabold tracking-tight leading-[1.1]"
             variants={fadeUp}
           >
-            <span className="text-gradient-hero">Not even we can</span>
+            <span className="text-gradient-hero">Share medical files</span>
             <br />
-            <span className="dark:text-white text-slate-900">see your files.</span>
+            <span className="dark:text-white text-slate-900">directly with your doctor.</span>
           </motion.h1>
 
           <motion.p
             className="mt-8 text-xl dark:text-slate-400 text-slate-500 max-w-xl mx-auto leading-relaxed"
             variants={fadeUp}
           >
-            Your files are encrypted before they leave your browser. Reading them back requires your doctor's wallet key and the file's content address — miss either one and the data stays locked. For everyone, including us.
+            No portals, no cloud drives, no middlemen. Pick a file, pick your doctor — it's encrypted in your browser and delivered straight to their wallet. Only they can open it.
           </motion.p>
 
           <motion.div className="mt-12 flex items-center justify-center gap-4" variants={fadeUp}>
@@ -326,18 +326,18 @@ export default function LandingPage() {
             variants={fadeIn}
           >
             <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4" />
-              <span>Immutable audit trail</span>
-            </div>
-            <div className="w-1 h-1 dark:bg-slate-700 bg-slate-300 rounded-full" />
-            <div className="flex items-center gap-2">
               <Lock className="w-4 h-4" />
               <span>End-to-end encrypted</span>
             </div>
             <div className="w-1 h-1 dark:bg-slate-700 bg-slate-300 rounded-full" />
             <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              <span>Blockchain-verified</span>
+            </div>
+            <div className="w-1 h-1 dark:bg-slate-700 bg-slate-300 rounded-full" />
+            <div className="flex items-center gap-2">
               <Users className="w-4 h-4" />
-              <span>Zero middlemen</span>
+              <span>Direct to doctor</span>
             </div>
           </motion.div>
         </div>

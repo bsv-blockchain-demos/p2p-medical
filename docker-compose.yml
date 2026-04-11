@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Frontend - Vite dev server
   frontend:
@@ -10,8 +8,7 @@ services:
       - "3000:3000"
     environment:
       - VITE_API_URL=http://localhost:3001
-      - VITE_UHRP_URL=http://localhost:3002
-      - VITE_UHRP_PROVIDERS=https://nanostore.babbage.systems
+      - VITE_UHRP_PROVIDERS=https://go-uhrp-us-1.bsvblockchain.tech,https://nanostore.babbage.systems
     depends_on:
       - backend
     volumes:
@@ -48,37 +45,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # MinIO - S3-compatible object storage for UHRP
-  minio:
-    image: minio/minio:latest
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    command: server /data --console-address ":9001"
-    volumes:
-      - minio_data:/data
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # MinIO bucket init
-  minio-init:
-    image: minio/mc:latest
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 minioadmin minioadmin;
-      mc mb local/medical-files --ignore-existing;
-      exit 0;
-      "
-
   # Block Headers Service - SPV chain validation
   bhs:
     image: bsvb/block-headers-service:latest
@@ -89,27 +55,6 @@ services:
     volumes:
       - bhs_data:/app/data
 
-  # UHRP Storage Server (placeholder - uses BSV's reference implementation)
-  uhrp-storage:
-    build:
-      context: ./services/uhrp-storage
-      dockerfile: Dockerfile
-    ports:
-      - "3002:3002"
-    environment:
-      - PORT=3002
-      - S3_ENDPOINT=http://minio:9000
-      - S3_ACCESS_KEY=minioadmin
-      - S3_SECRET_KEY=minioadmin
-      - S3_BUCKET=medical-files
-      - BHS_URL=http://bhs:8080
-    depends_on:
-      minio-init:
-        condition: service_completed_successfully
-      bhs:
-        condition: service_started
-
 volumes:
   mongodb_data:
-  minio_data:
   bhs_data:

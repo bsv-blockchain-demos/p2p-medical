@@ -92,6 +92,35 @@ export function createTokenRouter(db: Db) {
     }
   })
 
+  // Backfill CDN URL for existing tokens (sender-only)
+  router.patch('/:txid/cdn-url', async (req, res) => {
+    const txid = str(req.params.txid)
+    const senderKey = str(req.body.senderKey)
+    const cdnUrl = str(req.body.cdnUrl)
+
+    if (!txid || !senderKey || !cdnUrl) {
+      res.status(400).json({ error: 'Missing required fields: txid, senderKey, cdnUrl' })
+      return
+    }
+
+    try {
+      const result = await collection.updateOne(
+        { txid, senderKey },
+        { $set: { 'metadata.cdnUrl': cdnUrl, updatedAt: new Date() } },
+      )
+
+      if (result.matchedCount === 0) {
+        res.status(404).json({ error: 'Token not found or sender mismatch' })
+        return
+      }
+
+      res.json({ status: 'ok', txid })
+    } catch (err) {
+      console.error('CDN URL backfill error:', err)
+      res.status(500).json({ error: 'Failed to update CDN URL' })
+    }
+  })
+
   // Mark token as accessed (POC: replaces on-chain spend)
   router.post('/access', async (req, res) => {
     const txid = str(req.body.txid)
