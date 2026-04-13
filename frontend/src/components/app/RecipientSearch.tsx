@@ -1,16 +1,30 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, Loader2 } from 'lucide-react'
+import { Search, X, Loader2, Lock, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { searchIdentity, isValidPublicKey, type IdentityResult } from '@/services/identity'
+import { truncateKey } from '@/lib/utils'
 import { dropdownVariants, ease } from '@/lib/motion'
 
 interface RecipientSearchProps {
   onSelect: (key: string, name?: string) => void
   selectedKey: string | null
   selectedName: string | null
+}
+
+function AvatarCircle({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
+  const initial = (name || '?')[0].toUpperCase()
+  const cls = size === 'sm'
+    ? 'w-7 h-7 text-xs'
+    : 'w-10 h-10 text-sm font-semibold'
+  return (
+    <div className={`${cls} rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 text-white flex items-center justify-center shrink-0`}>
+      {initial}
+    </div>
+  )
 }
 
 export default function RecipientSearch({ onSelect, selectedKey, selectedName }: RecipientSearchProps) {
@@ -79,30 +93,56 @@ export default function RecipientSearch({ onSelect, selectedKey, selectedName }:
   return (
     <Card>
       <CardContent className="pt-6 space-y-4">
-        <h3 className="font-semibold">Find Recipient</h3>
+        {/* Step header */}
+        <div className="flex items-center gap-3">
+          <div className="w-6 h-6 rounded-full bg-violet-500 text-white text-xs font-bold flex items-center justify-center shrink-0">
+            1
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold">Choose Recipient</h3>
+              {selectedKey && <CheckCircle2 className="w-5 h-5 text-emerald-500" />}
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Search for a registered doctor or paste their public key
+            </p>
+          </div>
+        </div>
 
         {selectedKey ? (
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            className="flex items-center justify-between bg-violet-500/5 border border-violet-500/20 rounded-lg p-3"
-          >
-            <div>
-              <span className="font-medium">
-                {selectedName || 'Recipient'}
-              </span>
-              <span className="text-xs font-mono text-violet-500 dark:text-violet-400/70 ml-2">
-                <span className="break-all">({selectedKey})</span>
-              </span>
-            </div>
-            <Button variant="ghost" size="icon" onClick={handleClear}>
-              <X className="w-4 h-4" />
-            </Button>
-          </motion.div>
-        ) : (
           <>
-            <div className="relative" ref={dropdownRef}>
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              className="flex items-center justify-between bg-violet-500/5 border border-violet-500/20 rounded-lg p-3"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <AvatarCircle name={selectedName || 'R'} />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{selectedName || 'Recipient'}</span>
+                    <Badge variant="secondary">Doctor</Badge>
+                  </div>
+                  <span className="text-xs font-mono text-muted-foreground block truncate">
+                    {truncateKey(selectedKey, 10)}
+                  </span>
+                </div>
+              </div>
+              <Button variant="ghost" size="icon" onClick={handleClear}>
+                <X className="w-4 h-4" />
+              </Button>
+            </motion.div>
+
+            {/* Inline trust signal */}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Lock className="w-3.5 h-3.5 text-violet-500 shrink-0" />
+              <span>File will be encrypted exclusively for this recipient</span>
+            </div>
+          </>
+        ) : (
+          <div className="flex gap-3">
+            <div className="relative flex-1" ref={dropdownRef}>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 <Input
@@ -133,16 +173,19 @@ export default function RecipientSearch({ onSelect, selectedKey, selectedName }:
                         initial={{ opacity: 0, y: -4 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.05, duration: 0.2, ease }}
-                        className="w-full text-left px-3 py-2.5 hover:bg-violet-500/10 transition-colors border-b dark:border-slate-800/40 border-slate-100 last:border-0"
+                        className="w-full text-left px-3 py-2.5 hover:bg-violet-500/10 transition-colors border-b dark:border-slate-800/40 border-slate-100 last:border-0 flex items-center gap-2.5"
                         onClick={() => handleSelect(r)}
                       >
-                        <span className="font-medium text-sm">{r.name}</span>
-                        {r.role && (
-                          <span className="text-xs text-violet-500/50 dark:text-violet-400/50 ml-1.5">{r.role}</span>
-                        )}
-                        <span className="text-xs font-mono text-violet-500 dark:text-violet-400/70 block">
-                          {r.publicKey}
-                        </span>
+                        <AvatarCircle name={r.name} size="sm" />
+                        <div className="min-w-0">
+                          <span className="font-medium text-sm">{r.name}</span>
+                          {r.role && (
+                            <span className="text-xs text-violet-500/50 dark:text-violet-400/50 ml-1.5">{r.role}</span>
+                          )}
+                          <span className="text-xs font-mono text-violet-500 dark:text-violet-400/70 block truncate">
+                            {r.publicKey}
+                          </span>
+                        </div>
                       </motion.button>
                     ))}
                   </motion.div>
@@ -162,15 +205,11 @@ export default function RecipientSearch({ onSelect, selectedKey, selectedName }:
               </AnimatePresence>
             </div>
 
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <div className="flex-1 h-px dark:bg-slate-800 bg-slate-200" />
-              OR
-              <div className="flex-1 h-px dark:bg-slate-800 bg-slate-200" />
-            </div>
+            <span className="self-center text-sm text-muted-foreground">OR</span>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-1">
               <Input
-                placeholder="Paste recipient's public key"
+                placeholder="Paste public key"
                 value={pasteKey}
                 onChange={(e) => setPasteKey(e.target.value)}
                 className="font-mono text-xs"
@@ -183,7 +222,7 @@ export default function RecipientSearch({ onSelect, selectedKey, selectedName }:
                 Use Key
               </Button>
             </div>
-          </>
+          </div>
         )}
       </CardContent>
     </Card>

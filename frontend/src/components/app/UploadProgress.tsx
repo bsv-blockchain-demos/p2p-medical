@@ -1,13 +1,19 @@
 import { useRef, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
-import { CheckCircle2, Circle, Loader2, XCircle, Info, Copy, Check } from 'lucide-react'
+import { CheckCircle2, Circle, Loader2, XCircle, Info, Copy, Check, ExternalLink } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { cn } from '@/lib/utils'
-import { formatTimestamp } from '@/lib/utils'
+import { cn, formatFileSize, formatTimestamp, truncateKey } from '@/lib/utils'
 import { ease, successDetailRow, successStagger } from '@/lib/motion'
-import type { UploadStep, UploadResult } from './PatientDashboard'
+import type { UploadStep, UploadResult, FileMetadata } from './PatientDashboard'
+
+const FILE_TYPE_LABELS: Record<string, string> = {
+  xray: 'X-Ray',
+  scan: 'Scan',
+  report: 'Report',
+  other: 'Other',
+}
 
 function CopyBtn({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
@@ -22,12 +28,34 @@ function CopyBtn({ text }: { text: string }) {
   )
 }
 
+function Tip({ title, points }: { title: string; points: string[] }) {
+  return (
+    <span className="relative group/tip inline-flex">
+      <Info className="w-3 h-3 text-slate-400 dark:text-slate-500 cursor-help shrink-0" />
+      <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-72 p-3 rounded-lg dark:bg-slate-800 bg-slate-900 text-white shadow-lg opacity-0 pointer-events-none group-hover/tip:opacity-100 group-hover/tip:pointer-events-auto transition-opacity z-10">
+        <strong className="block text-xs mb-1.5">{title}</strong>
+        <ul className="space-y-1">
+          {points.map((pt, i) => (
+            <li key={i} className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-300">
+              <span className="text-violet-400 mt-0.5 shrink-0">&#8226;</span>
+              {pt}
+            </li>
+          ))}
+        </ul>
+      </span>
+    </span>
+  )
+}
+
 interface UploadProgressProps {
   step: UploadStep
   error: string | null
   result: UploadResult | null
   recipientName: string | null
   failedStep: UploadStep | null
+  metadata: FileMetadata | null
+  senderName: string | null
+  senderKey: string | null
 }
 
 interface StepDef {
@@ -135,7 +163,7 @@ const iconSpring = {
   },
 }
 
-export default function UploadProgress({ step, error, result, recipientName, failedStep }: UploadProgressProps) {
+export default function UploadProgress({ step, error, result, recipientName, failedStep, metadata, senderName, senderKey }: UploadProgressProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const hasFiredRef = useRef(false)
 
@@ -308,98 +336,157 @@ export default function UploadProgress({ step, error, result, recipientName, fai
                 variants={successStagger}
                 initial="hidden"
                 animate="show"
-                className="space-y-3 text-sm"
+                className="text-sm space-y-4"
               >
-                <motion.div variants={successDetailRow} className="grid grid-cols-[5.5rem_1fr] gap-x-3 items-baseline">
-                  <span className="text-xs dark:text-slate-500 text-slate-400">Txid</span>
+                {/* Status badge */}
+                <motion.div variants={successDetailRow}>
+                  <Badge variant="secondary">ENCRYPTED</Badge>
+                </motion.div>
+
+                <div className="border-t dark:border-slate-800/50 border-slate-200" />
+
+                {/* File info rows — matches ImageViewer layout */}
+                <div className="grid grid-cols-[6rem_1fr] gap-x-3 gap-y-2.5 text-xs">
+                  {/* From */}
+                  {senderKey && (
+                    <>
+                      <span className="dark:text-slate-500 text-slate-400">From</span>
+                      <span className="flex items-center gap-1.5 min-w-0">
+                        <span className="dark:text-slate-200 text-slate-700 font-medium truncate">
+                          {senderName || truncateKey(senderKey, 8)}
+                        </span>
+                        <span className="font-mono text-muted-foreground">{truncateKey(senderKey, 6)}</span>
+                        <CopyBtn text={senderKey} />
+                      </span>
+                    </>
+                  )}
+
+                  {/* To */}
+                  <span className="dark:text-slate-500 text-slate-400">To</span>
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <span className="dark:text-slate-200 text-slate-700 font-medium truncate">
+                      {recipientName || truncateKey(result.recipientKey, 8)}
+                    </span>
+                    <span className="font-mono text-muted-foreground">{truncateKey(result.recipientKey, 6)}</span>
+                    <CopyBtn text={result.recipientKey} />
+                  </span>
+
+                  {/* Type */}
+                  {metadata?.fileType && (
+                    <>
+                      <span className="dark:text-slate-500 text-slate-400">Type</span>
+                      <span className="dark:text-slate-300 text-slate-600">{FILE_TYPE_LABELS[metadata.fileType] || metadata.fileType}</span>
+                    </>
+                  )}
+
+                  {/* Size */}
+                  {metadata?.fileSizeBytes != null && metadata.fileSizeBytes > 0 && (
+                    <>
+                      <span className="dark:text-slate-500 text-slate-400">Size</span>
+                      <span className="dark:text-slate-300 text-slate-600">{formatFileSize(metadata.fileSizeBytes)}</span>
+                    </>
+                  )}
+
+                  {/* Sent */}
+                  <span className="dark:text-slate-500 text-slate-400">Sent</span>
+                  <span className="dark:text-slate-300 text-slate-600">{formatTimestamp(result.timestamp)}</span>
+
+                  {/* Expires */}
+                  {result.retentionExpiry && (
+                    <>
+                      <span className="dark:text-slate-500 text-slate-400">Expires</span>
+                      <span className="dark:text-slate-300 text-slate-600">{formatTimestamp(result.retentionExpiry)}</span>
+                    </>
+                  )}
+                </div>
+
+                {/* Blockchain proof rows */}
+                <div className="border-t dark:border-slate-800/50 border-slate-200" />
+
+                <div className="grid grid-cols-[6rem_1fr] gap-x-3 gap-y-2.5 text-xs">
+                  {/* Txid */}
+                  <span className="dark:text-slate-500 text-slate-400 inline-flex items-center gap-1">
+                    Txid
+                    <Tip
+                      title="Blockchain Transaction"
+                      points={[
+                        'On-chain record of this file share',
+                        'Click to view on WhatsOnChain',
+                        'Proves upload happened at a specific time',
+                        'Cannot be altered retroactively',
+                      ]}
+                    />
+                  </span>
                   <span className="flex items-center gap-1.5 min-w-0">
                     <a
                       href={`https://whatsonchain.com/tx/${result.txid}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-mono text-xs break-all dark:text-slate-300 text-slate-600 hover:text-violet-600 dark:hover:text-violet-300 hover:underline"
+                      className="font-mono text-violet-500 dark:text-violet-400 hover:text-violet-600 dark:hover:text-violet-300 hover:underline break-all inline-flex items-center gap-1"
                     >
                       {result.txid}
+                      <ExternalLink className="w-3 h-3 shrink-0" />
                     </a>
                     <CopyBtn text={result.txid} />
                   </span>
-                </motion.div>
-                <motion.div variants={successDetailRow} className="grid grid-cols-[5.5rem_1fr] gap-x-3 items-baseline">
-                  <span className="text-xs dark:text-slate-500 text-slate-400 inline-flex items-center gap-1">
-                    UHRP URL
-                    <span className="relative group/tip">
-                      <Info className="w-3 h-3 text-slate-400 dark:text-slate-500 cursor-help shrink-0" />
-                      <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-72 p-3 rounded-lg dark:bg-slate-800 bg-slate-900 text-white shadow-lg opacity-0 pointer-events-none group-hover/tip:opacity-100 group-hover/tip:pointer-events-auto transition-opacity z-10">
-                        <strong className="block text-xs mb-1.5">UHRP (Universal Hash Resolution Protocol)</strong>
-                        <ul className="space-y-1">
-                          <li className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-300"><span className="text-violet-400 mt-0.5 shrink-0">&#8226;</span>URL derived from the file's SHA-256 hash</li>
-                          <li className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-300"><span className="text-violet-400 mt-0.5 shrink-0">&#8226;</span>If the file changes, the URL breaks</li>
-                          <li className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-300"><span className="text-violet-400 mt-0.5 shrink-0">&#8226;</span>Paste into a UHRP resolver to access independently</li>
-                          <li className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-300"><span className="text-violet-400 mt-0.5 shrink-0">&#8226;</span>Only the recipient's wallet can decrypt</li>
-                        </ul>
-                      </span>
-                    </span>
+
+                  {/* UHRP */}
+                  <span className="dark:text-slate-500 text-slate-400 inline-flex items-center gap-1">
+                    UHRP
+                    <Tip
+                      title="UHRP (Universal Hash Resolution Protocol)"
+                      points={[
+                        'Content-addressed URL from file\'s SHA-256 hash',
+                        'Paste into any UHRP resolver to download independently',
+                        'Verify file integrity against the on-chain hash',
+                      ]}
+                    />
                   </span>
                   <span className="flex items-center gap-1.5 min-w-0">
-                    <span className="font-mono text-xs break-all dark:text-slate-300 text-slate-600">{result.uhrpUrl}</span>
+                    <span className="font-mono break-all dark:text-slate-300 text-slate-600">{result.uhrpUrl}</span>
                     <CopyBtn text={result.uhrpUrl} />
                   </span>
-                </motion.div>
-                <motion.div variants={successDetailRow} className="grid grid-cols-[5.5rem_1fr] gap-x-3 items-baseline">
-                  <span className="text-xs dark:text-slate-500 text-slate-400">To</span>
-                  <span className="flex items-center gap-2 min-w-0">
-                    <span className="text-xs dark:text-slate-300 text-slate-600 shrink-0">{recipientName || 'Unknown'}</span>
-                    <span className="font-mono text-xs dark:text-slate-300 text-slate-600 truncate">{result.recipientKey}</span>
-                    <CopyBtn text={result.recipientKey} />
+
+                  {/* Hash */}
+                  <span className="dark:text-slate-500 text-slate-400 inline-flex items-center gap-1">
+                    Hash
+                    <Tip
+                      title="Integrity Verification"
+                      points={[
+                        'SHA-256 hash recorded on-chain at upload',
+                        'Hash recalculated after download by recipient',
+                        'Match confirms file was not altered in transit',
+                      ]}
+                    />
                   </span>
-                </motion.div>
-                <motion.div variants={successDetailRow} className="grid grid-cols-[5.5rem_1fr] gap-x-3 items-baseline">
-                  <span className="text-xs dark:text-slate-500 text-slate-400">Time Sent</span>
-                  <span className="text-xs dark:text-slate-300 text-slate-600">{formatTimestamp(result.timestamp)}</span>
-                </motion.div>
-                <motion.div variants={successDetailRow} className="grid grid-cols-[5.5rem_1fr] gap-x-3 items-baseline">
-                  <span className="text-xs dark:text-slate-500 text-slate-400 inline-flex items-center gap-1">
-                    Expires
-                    <span className="relative group/ret">
-                      <Info className="w-3 h-3 text-slate-400 dark:text-slate-500 cursor-help shrink-0" />
-                      <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-72 p-3 rounded-lg dark:bg-slate-800 bg-slate-900 text-white shadow-lg opacity-0 pointer-events-none group-hover/ret:opacity-100 group-hover/ret:pointer-events-auto transition-opacity z-10">
-                        <strong className="block text-xs mb-1.5">Retention Expiry</strong>
-                        <ul className="space-y-1">
-                          <li className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-300"><span className="text-violet-400 mt-0.5 shrink-0">&#8226;</span>Date your file's paid hosting period ends</li>
-                          <li className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-300"><span className="text-violet-400 mt-0.5 shrink-0">&#8226;</span>Storage providers may remove the file after this</li>
-                          <li className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-300"><span className="text-violet-400 mt-0.5 shrink-0">&#8226;</span>Extend by re-uploading before expiry</li>
-                        </ul>
+                  <span className="inline-flex items-center gap-1.5 dark:text-slate-300 text-slate-600">
+                    SHA-256 verified
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  </span>
+
+                  {/* Stored */}
+                  {result.providerCount > 0 && (
+                    <>
+                      <span className="dark:text-slate-500 text-slate-400 inline-flex items-center gap-1">
+                        Stored
+                        <Tip
+                          title="Storage Providers"
+                          points={[
+                            'Number of independent UHRP nodes hosting the file',
+                            'More providers = better availability',
+                            'If one goes offline, others still serve the data',
+                          ]}
+                        />
                       </span>
-                    </span>
-                  </span>
-                  <span className="text-xs dark:text-slate-300 text-slate-600">{formatTimestamp(result.retentionExpiry)}</span>
-                </motion.div>
-                <motion.div variants={successDetailRow} className="grid grid-cols-[5.5rem_1fr] gap-x-3 items-baseline">
-                  <span className="text-xs dark:text-slate-500 text-slate-400 inline-flex items-center gap-1">
-                    Stored
-                    <span className="relative group/prov">
-                      <Info className="w-3 h-3 text-slate-400 dark:text-slate-500 cursor-help shrink-0" />
-                      <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-72 p-3 rounded-lg dark:bg-slate-800 bg-slate-900 text-white shadow-lg opacity-0 pointer-events-none group-hover/prov:opacity-100 group-hover/prov:pointer-events-auto transition-opacity z-10">
-                        <strong className="block text-xs mb-1.5">Storage Providers</strong>
-                        <ul className="space-y-1">
-                          <li className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-300"><span className="text-violet-400 mt-0.5 shrink-0">&#8226;</span>Independent UHRP nodes hosting your encrypted file</li>
-                          <li className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-300"><span className="text-violet-400 mt-0.5 shrink-0">&#8226;</span>More providers = better redundancy</li>
-                          <li className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-300"><span className="text-violet-400 mt-0.5 shrink-0">&#8226;</span>If one goes offline, others still serve the data</li>
-                        </ul>
+                      <span className="dark:text-slate-300 text-slate-600 inline-flex items-center gap-2 flex-wrap">
+                        {result.providerCount} provider{result.providerCount !== 1 ? 's' : ''}
+                        {result.providerNames.length > 0 && result.providerNames.map((u, i) => (
+                          <span key={i} className="text-[11px] font-mono px-1.5 py-0.5 rounded dark:bg-slate-800 bg-slate-100 dark:text-slate-400 text-slate-500">{u}</span>
+                        ))}
                       </span>
-                    </span>
-                  </span>
-                  <span className="text-xs dark:text-slate-300 text-slate-600">
-                    {result.providerCount} provider{result.providerCount !== 1 ? 's' : ''}
-                    {result.providerNames.length > 0 && (
-                      <span>{': '}{result.providerNames.join(', ')}</span>
-                    )}
-                  </span>
-                </motion.div>
-                <motion.div variants={successDetailRow} className="grid grid-cols-[5.5rem_1fr] gap-x-3 items-baseline">
-                  <span className="text-xs dark:text-slate-500 text-slate-400">Status</span>
-                  <Badge variant="secondary" className="w-fit">ENCRYPTED</Badge>
-                </motion.div>
+                    </>
+                  )}
+                </div>
               </motion.div>
             </motion.div>
           )}

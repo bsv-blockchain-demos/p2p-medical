@@ -95,6 +95,16 @@ export const successStagger: Variants = {
   show: { transition: { staggerChildren: 0.06, delayChildren: 0.1 } },
 }
 
+export const summaryStagger: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.05, delayChildren: 0.15 } },
+}
+
+export const summaryRow: Variants = {
+  hidden: { opacity: 0, x: -8 },
+  show: { opacity: 1, x: 0, transition: { duration: 0.35, ease } },
+}
+
 export const progressStep: Variants = {
   inactive: {
     opacity: 0.5,

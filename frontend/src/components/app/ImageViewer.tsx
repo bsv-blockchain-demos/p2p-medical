@@ -1,15 +1,22 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, CheckCircle2, XCircle, Loader2, Circle, Clock, Shield, Download, Info, Lock, Copy, Check } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, XCircle, Loader2, Circle, Clock, Shield, Download, Info, Lock, Copy, Check, Eye, ExternalLink } from 'lucide-react'
 import { downloadFromUHRP } from '@/services/storage'
 import { fetchProfile } from '@/services/identity'
 import { decryptFromSender, hashContent } from '@/services/crypto'
 import { recordView, queryFileViews, resolveNames, type MedicalToken, type ViewEvent } from '@/services/tokens'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatFileSize, formatTimestamp, truncateKey } from '@/lib/utils'
 import { ease } from '@/lib/motion'
+
+const FILE_TYPE_LABELS: Record<string, string> = {
+  xray: 'X-Ray',
+  scan: 'Scan',
+  report: 'Report',
+  other: 'Other',
+}
 
 function Tip({ title, points }: { title: string; points: string[] }) {
   return (
@@ -60,9 +67,12 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
   const [encryptedData, setEncryptedData] = useState<Uint8Array | null>(null)
   const [decryptedAt, setDecryptedAt] = useState<number | null>(null)
   const [senderName, setSenderName] = useState<string | null>(null)
+  const [recipientName, setRecipientName] = useState<string | null>(null)
   const [viewHistory, setViewHistory] = useState<ViewEvent[]>([])
   const [viewNames, setViewNames] = useState<Map<string, string>>(new Map())
   const [viewsLoading, setViewsLoading] = useState(true)
+
+  const fileTypeLabel = FILE_TYPE_LABELS[token.metadata.fileType] || token.metadata.fileType
 
   const loadViewHistory = async () => {
     try {
@@ -86,6 +96,12 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
       if (p?.name) setSenderName(p.name)
     })
   }, [token.senderKey])
+
+  useEffect(() => {
+    fetchProfile(token.recipientKey).then((p) => {
+      if (p?.name) setRecipientName(p.name)
+    })
+  }, [token.recipientKey])
 
   useEffect(() => {
     loadViewHistory()
@@ -193,18 +209,83 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
         <ArrowLeft className="w-4 h-4" /> {backLabel}
       </Button>
 
-      {/* Details & Progress */}
+      {/* Page header */}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shrink-0">
+          <Shield className="w-5 h-5 text-white" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-semibold">File Details</h2>
+          <p className="text-sm text-muted-foreground">Encrypted file shared to your wallet</p>
+        </div>
+      </div>
+
+      {/* Main card — single vertical list */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <Shield className="w-4 h-4 text-violet-400" />
-            File Details & Blockchain Proof
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm space-y-3">
+        <CardContent className="pt-6 text-sm space-y-4">
+          {/* Top bar: status badge */}
+          <div>
+            <Badge variant={step === 'done' ? 'success' : 'secondary'}>
+              {step === 'done' ? 'DECRYPTED' : 'ENCRYPTED'}
+            </Badge>
+          </div>
+
+          <div className="border-t dark:border-slate-800/50 border-slate-200" />
+
+          {/* File info rows */}
+          <div className="grid grid-cols-[6rem_1fr] gap-x-3 gap-y-2.5 text-xs">
+            <span className="dark:text-slate-500 text-slate-400">From</span>
+            <span className="flex items-center gap-1.5 min-w-0">
+              <span className="dark:text-slate-200 text-slate-700 font-medium truncate">
+                {senderName || truncateKey(token.senderKey, 8)}
+              </span>
+              <span className="font-mono text-muted-foreground">{truncateKey(token.senderKey, 6)}</span>
+              <CopyBtn text={token.senderKey} />
+            </span>
+
+            <span className="dark:text-slate-500 text-slate-400">To</span>
+            <span className="flex items-center gap-1.5 min-w-0">
+              <span className="dark:text-slate-200 text-slate-700 font-medium truncate">
+                {recipientName || truncateKey(token.recipientKey, 8)}
+              </span>
+              <span className="font-mono text-muted-foreground">{truncateKey(token.recipientKey, 6)}</span>
+              <CopyBtn text={token.recipientKey} />
+            </span>
+
+            <span className="dark:text-slate-500 text-slate-400">Type</span>
+            <span className="dark:text-slate-300 text-slate-600">{fileTypeLabel}</span>
+
+            <span className="dark:text-slate-500 text-slate-400">Size</span>
+            <span className="dark:text-slate-300 text-slate-600">{formatFileSize(token.metadata.fileSizeBytes)}</span>
+
+            <span className="dark:text-slate-500 text-slate-400">Sent</span>
+            <span className="dark:text-slate-300 text-slate-600">{formatTimestamp(token.timestamp)}</span>
+
+            {token.metadata.retentionExpiry && (
+              <>
+                <span className="dark:text-slate-500 text-slate-400">Expires</span>
+                <span className="dark:text-slate-300 text-slate-600">
+                  {new Date(token.metadata.retentionExpiry).toLocaleString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: 'UTC',
+                  })}{' '}
+                  UTC
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* Blockchain proof rows (gated) */}
           {(step === 'done' || step === 'awaiting-decrypt') && (
             <>
-              <div className="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-2.5 text-xs">
+              <div className="border-t dark:border-slate-800/50 border-slate-200" />
+
+              <div className="grid grid-cols-[6rem_1fr] gap-x-3 gap-y-2.5 text-xs">
+                {/* Txid */}
                 <span className="dark:text-slate-500 text-slate-400 inline-flex items-center gap-1">
                   Txid
                   <Tip
@@ -222,14 +303,17 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
                     href={`https://whatsonchain.com/tx/${token.txid}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-mono dark:text-slate-300 text-slate-600 hover:text-violet-600 dark:hover:text-violet-300 hover:underline break-all"
+                    className="font-mono text-violet-500 dark:text-violet-400 hover:text-violet-600 dark:hover:text-violet-300 hover:underline break-all inline-flex items-center gap-1"
                   >
                     {token.txid}
+                    <ExternalLink className="w-3 h-3 shrink-0" />
                   </a>
                   <CopyBtn text={token.txid} />
                 </span>
+
+                {/* UHRP */}
                 <span className="dark:text-slate-500 text-slate-400 inline-flex items-center gap-1">
-                  UHRP URL
+                  UHRP
                   <Tip
                     title="UHRP (Universal Hash Resolution Protocol)"
                     points={[
@@ -243,29 +327,8 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
                   <span className="font-mono break-all dark:text-slate-300 text-slate-600">{token.uhrpUrl}</span>
                   <CopyBtn text={token.uhrpUrl} />
                 </span>
-                <span className="dark:text-slate-500 text-slate-400 inline-flex items-center gap-1">
-                  From
-                  <Tip
-                    title="Sender Identity"
-                    points={[
-                      'Public identity key from the sender\'s wallet',
-                      'Unique cryptographic fingerprint',
-                      'Proves who encrypted and shared the file',
-                    ]}
-                  />
-                </span>
-                <span className="flex items-center gap-2 min-w-0">
-                  {senderName && <span className="dark:text-slate-300 text-slate-600 shrink-0">{senderName}</span>}
-                  <span className="font-mono dark:text-slate-300 text-slate-600 truncate">{token.senderKey}</span>
-                  <CopyBtn text={token.senderKey} />
-                </span>
-                <span className="dark:text-slate-500 text-slate-400">File Type</span>
-                <span className="dark:text-slate-300 text-slate-600">
-                  {token.metadata.fileType}
-                  {token.metadata.bodyPart && ` · ${token.metadata.bodyPart}`}
-                </span>
-                <span className="dark:text-slate-500 text-slate-400">Size</span>
-                <span className="dark:text-slate-300 text-slate-600">{formatFileSize(token.metadata.fileSizeBytes)}</span>
+
+                {/* Hash */}
                 <span className="dark:text-slate-500 text-slate-400 inline-flex items-center gap-1">
                   Hash
                   <Tip
@@ -277,41 +340,21 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
                     ]}
                   />
                 </span>
-                <span className="dark:text-slate-300 text-slate-600 inline-flex items-center gap-1.5">
-                  SHA-256 {hashMatch ? 'verified' : 'mismatch'}
+                <span>
                   {hashMatch ? (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    <span className="inline-flex items-center gap-1.5 dark:text-slate-300 text-slate-600">
+                      SHA-256 verified
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    </span>
                   ) : (
-                    <XCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                    <span className="inline-flex items-center gap-1.5 dark:text-slate-300 text-slate-600">
+                      SHA-256 mismatch
+                      <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                    </span>
                   )}
                 </span>
-                <span className="dark:text-slate-500 text-slate-400">Time Sent</span>
-                <span className="dark:text-slate-300 text-slate-600">{formatTimestamp(token.timestamp)}</span>
-                {token.metadata.retentionExpiry && (
-                  <>
-                    <span className="dark:text-slate-500 text-slate-400 inline-flex items-center gap-1">
-                      Expires
-                      <Tip
-                        title="Storage Expiry"
-                        points={[
-                          'Date the paid hosting period ends',
-                          'UHRP providers may remove the file after this',
-                          'Sender can extend by re-uploading before expiry',
-                        ]}
-                      />
-                    </span>
-                    <span className="dark:text-slate-300 text-slate-600">
-                      {new Date(token.metadata.retentionExpiry).toLocaleString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        timeZone: 'UTC',
-                      })} UTC
-                    </span>
-                  </>
-                )}
+
+                {/* Stored (provider info) */}
                 {token.metadata.providerCount && (
                   <>
                     <span className="dark:text-slate-500 text-slate-400 inline-flex items-center gap-1">
@@ -325,38 +368,30 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
                         ]}
                       />
                     </span>
-                    <span className="dark:text-slate-300 text-slate-600">
+                    <span className="dark:text-slate-300 text-slate-600 inline-flex items-center gap-2 flex-wrap">
                       {token.metadata.providerCount} provider{token.metadata.providerCount !== 1 ? 's' : ''}
                       {(() => {
                         const urls = token.metadata.providerUrls
                         if (urls && urls.length > 0) {
-                          return <span>{': '}{urls.join(', ')}</span>
+                          return urls.map((u: string, i: number) => (
+                            <span key={i} className="text-[11px] font-mono px-1.5 py-0.5 rounded dark:bg-slate-800 bg-slate-100 dark:text-slate-400 text-slate-500">{u}</span>
+                          ))
                         }
                         if (token.metadata.cdnUrl) {
-                          return <span>{': '}{new URL(token.metadata.cdnUrl).origin}</span>
+                          const origin = new URL(token.metadata.cdnUrl).origin
+                          return <span className="text-[11px] font-mono px-1.5 py-0.5 rounded dark:bg-slate-800 bg-slate-100 dark:text-slate-400 text-slate-500">{origin}</span>
                         }
                         return null
                       })()}
                     </span>
                   </>
                 )}
-                <span className="dark:text-slate-500 text-slate-400">Status</span>
-                <div className="flex items-center gap-2">
-                  {step === 'done' ? (
-                    <>
-                      <Badge variant="success">DECRYPTED</Badge>
-                      {decryptedAt && (
-                        <span className="dark:text-slate-400 text-slate-400 text-xs">{formatTimestamp(decryptedAt)}</span>
-                      )}
-                    </>
-                  ) : (
-                    <Badge variant="secondary">ENCRYPTED</Badge>
-                  )}
-                </div>
               </div>
-              <div className="border-t dark:border-slate-800/50 border-slate-200" />
             </>
           )}
+
+          {/* Download & Decrypt */}
+          <div className="border-t dark:border-slate-800/50 border-slate-200" />
 
           {/* Progress steps */}
           <div className="space-y-2">
@@ -484,46 +519,59 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
 
       {/* View History */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <Clock className="w-4 h-4 text-violet-400" />
+        <CardContent className="pt-6 text-sm">
+          <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
             View History
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm">
-          {viewsLoading ? (
-            <div className="flex items-center gap-2 dark:text-slate-400 text-slate-500">
-              <Loader2 className="w-4 h-4 animate-spin" /> Loading view history…
-            </div>
-          ) : viewHistory.length === 0 ? (
-            <p className="dark:text-slate-500 text-slate-400">No views recorded yet</p>
-          ) : (
-            <div className="space-y-2">
-              {viewHistory.map((view, i) => (
-                <div key={`${view.accessedBy}-${view.timestamp}-${i}`} className="flex items-center justify-between gap-4 py-1.5 border-b last:border-0 dark:border-slate-800/50 border-slate-200">
-                  <div className="flex items-center gap-2 min-w-0">
-                    {view.accessedBy ? (
-                      <>
-                        {viewNames.get(view.accessedBy) && (
-                          <span className="text-sm font-medium dark:text-slate-200 text-slate-700 shrink-0">
-                            {viewNames.get(view.accessedBy)}
-                          </span>
-                        )}
-                        <span className="font-mono text-xs dark:text-slate-500 text-slate-400 truncate">
-                          {truncateKey(view.accessedBy)}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-xs italic dark:text-slate-500 text-slate-400">Unknown viewer</span>
-                    )}
-                  </div>
-                  <span className="text-xs dark:text-slate-500 text-slate-400 shrink-0">
-                    {view.timestamp ? formatTimestamp(view.timestamp) : '—'}
-                  </span>
+          </span>
+
+          <div className="mt-3">
+            {viewsLoading ? (
+              <div className="flex items-center gap-2 dark:text-slate-400 text-slate-500">
+                <Loader2 className="w-4 h-4 animate-spin" /> Loading view history…
+              </div>
+            ) : viewHistory.length === 0 ? (
+              <div className="py-8 flex flex-col items-center justify-center text-center">
+                <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center mb-3">
+                  <Eye className="w-5 h-5 text-violet-400" />
                 </div>
-              ))}
-            </div>
-          )}
+                <p className="text-sm text-muted-foreground">No views recorded yet</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {viewHistory.map((view, i) => {
+                  const viewerName = view.accessedBy ? viewNames.get(view.accessedBy) : null
+                  const viewerInitial = viewerName ? viewerName[0].toUpperCase() : '?'
+
+                  return (
+                    <div key={`${view.accessedBy}-${view.timestamp}-${i}`} className="flex items-center justify-between gap-4 py-1.5 border-b last:border-0 dark:border-slate-800/50 border-slate-200">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500/20 to-indigo-500/20 text-violet-600 dark:text-violet-400 text-xs font-bold flex items-center justify-center shrink-0">
+                          {viewerInitial}
+                        </div>
+                        {view.accessedBy ? (
+                          <div className="min-w-0">
+                            {viewerName && (
+                              <div className="text-sm font-medium dark:text-slate-200 text-slate-700 truncate">
+                                {viewerName}
+                              </div>
+                            )}
+                            <div className="font-mono text-xs dark:text-slate-500 text-slate-400 truncate">
+                              {truncateKey(view.accessedBy)}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs italic dark:text-slate-500 text-slate-400">Unknown viewer</span>
+                        )}
+                      </div>
+                      <span className="text-xs dark:text-slate-500 text-slate-400 shrink-0">
+                        {view.timestamp ? formatTimestamp(view.timestamp) : '—'}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 

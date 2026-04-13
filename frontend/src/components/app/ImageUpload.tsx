@@ -1,20 +1,20 @@
-import { useCallback, useRef, useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { Upload, FileImage, FileText, File as FileIcon, CheckCircle2, Scan, Clock, HardDrive, ChevronDown, Check } from 'lucide-react'
+import { useCallback, useRef, useState, useEffect, useMemo } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Upload, FileImage, FileText, File as FileIcon, CheckCircle2, Scan, Clock, HardDrive, ChevronDown, Check, Settings } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Select } from '@/components/ui/select'
 import { formatFileSize } from '@/lib/utils'
 import type { FileMetadata } from './PatientDashboard'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
-const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'application/dicom']
+const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'application/pdf']
 
 const UHRP_PROVIDERS = [
-  { key: 'https://go-uhrp-us-1.bsvblockchain.tech', label: 'BSV Blockchain Tech (Go-US-1)' },
+  { key: 'https://go-uhrp-us-1.bsvblockchain.tech', label: 'BSV Blockchain Tech' },
   { key: 'https://nanostore.babbage.systems', label: 'Nanostore' },
 ] as const
 
-const RETENTION_OPTIONS = [
+export const RETENTION_OPTIONS = [
   { label: '1 Day', minutes: 1440 },
   { label: '1 Week', minutes: 10080 },
   { label: '1 Month', minutes: 43200 },
@@ -24,6 +24,13 @@ const RETENTION_OPTIONS = [
   { label: '5 Years', minutes: 2628000 },
   { label: '10 Years', minutes: 5256000 },
 ] as const
+
+const FILE_TYPE_LABELS: Record<FileMetadata['fileType'], string> = {
+  xray: 'X-Ray',
+  scan: 'Scan',
+  report: 'Report',
+  other: 'Other',
+}
 
 interface ImageUploadProps {
   onFileSelect: (file: File, metadata: FileMetadata) => void
@@ -46,6 +53,21 @@ export default function ImageUpload({ onFileSelect, file }: ImageUploadProps) {
   const [retentionPeriod, setRetentionPeriod] = useState(10080) // 1 Week default
   const [selectedProviders, setSelectedProviders] = useState<string[]>([UHRP_PROVIDERS[0].key])
   const [providerOpen, setProviderOpen] = useState(false)
+  const [showSettings, setShowSettings] = useState(true)
+
+  // Image thumbnail preview
+  const thumbnailUrl = useMemo(() => {
+    if (file && file.type.startsWith('image/')) {
+      return URL.createObjectURL(file)
+    }
+    return null
+  }, [file])
+
+  useEffect(() => {
+    return () => {
+      if (thumbnailUrl) URL.revokeObjectURL(thumbnailUrl)
+    }
+  }, [thumbnailUrl])
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -120,9 +142,26 @@ export default function ImageUpload({ onFileSelect, file }: ImageUploadProps) {
 
   const SelectedIcon = file ? getFileIcon(file) : null
 
+  const retentionLabel = RETENTION_OPTIONS.find((o) => o.minutes === retentionPeriod)?.label || '1 Week'
+  const providerSummary = selectedProviders.length === UHRP_PROVIDERS.length ? 'All Providers' : `${selectedProviders.length} Provider`
+  const settingsSummary = `${FILE_TYPE_LABELS[fileType]} · ${retentionLabel} · ${providerSummary}`
+
   return (
-    <Card>
-      <CardContent className="p-6 space-y-0">
+    <Card className="backdrop-blur-none dark:bg-slate-900 bg-white overflow-visible">
+      <CardContent className="p-6 space-y-0 overflow-visible">
+        {/* Step header */}
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-6 h-6 rounded-full bg-violet-500 text-white text-xs font-bold flex items-center justify-center shrink-0">
+            2
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold">Attach Medical File</h3>
+              {file && <CheckCircle2 className="w-5 h-5 text-emerald-500" />}
+            </div>
+          </div>
+        </div>
+
         {/* Gradient border wrapper */}
         <motion.div
           className={`rounded-xl p-px bg-gradient-to-br transition-all duration-300 ${
@@ -161,15 +200,27 @@ export default function ImageUpload({ onFileSelect, file }: ImageUploadProps) {
             />
             {file && SelectedIcon ? (
               <>
-                <div className="relative inline-flex mb-3">
-                  <SelectedIcon className="w-10 h-10 text-violet-500 dark:text-violet-400" />
-                  <CheckCircle2 className="w-4 h-4 text-violet-500 absolute -top-1 -right-1.5" />
+                <div className="flex items-center justify-center gap-4">
+                  {thumbnailUrl ? (
+                    <img
+                      src={thumbnailUrl}
+                      alt="Preview"
+                      className="w-16 h-16 rounded-lg object-cover border border-violet-500/20"
+                    />
+                  ) : (
+                    <div className="relative inline-flex">
+                      <SelectedIcon className="w-10 h-10 text-violet-500 dark:text-violet-400" />
+                      <CheckCircle2 className="w-4 h-4 text-violet-500 absolute -top-1 -right-1.5" />
+                    </div>
+                  )}
+                  <div className="text-left">
+                    <p className="text-violet-700 dark:text-violet-300 font-semibold">{file.name}</p>
+                    <p className="text-sm dark:text-slate-400 text-slate-500 mt-0.5">
+                      {formatFileSize(file.size)} &middot; {file.type}
+                    </p>
+                    <p className="text-xs dark:text-slate-500 text-slate-400 mt-1">Click to replace</p>
+                  </div>
                 </div>
-                <p className="text-violet-700 dark:text-violet-300 font-semibold">{file.name}</p>
-                <p className="text-sm dark:text-slate-400 text-slate-500 mt-0.5">
-                  {formatFileSize(file.size)} &middot; {file.type}
-                </p>
-                <p className="text-xs dark:text-slate-500 text-slate-400 mt-2">Click to replace</p>
               </>
             ) : (
               <>
@@ -181,110 +232,136 @@ export default function ImageUpload({ onFileSelect, file }: ImageUploadProps) {
                 </motion.div>
                 <p className="font-medium">Drop your file here, or click to browse</p>
                 <p className="text-sm dark:text-slate-500 text-slate-400 mt-1">
-                  JPEG, PNG, DICOM &middot; Max 10MB
+                  JPEG, PNG, PDF &middot; Max 10MB
                 </p>
               </>
             )}
           </div>
         </motion.div>
 
-        {/* Metadata row */}
-        <div className="border-t dark:border-slate-800/60 border-slate-200/60 pt-5 mt-5">
-          <div className="grid grid-cols-[1fr_1fr_1.5fr] gap-4">
-            <div>
-              <label className="text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1.5">
-                <Scan className="w-4 h-4" />
-                File type
-              </label>
-              <Select
-                value={fileType}
-                onChange={(e) => setFileType(e.target.value as FileMetadata['fileType'])}
+        {/* Collapsible settings */}
+        <div className="border-t dark:border-slate-800/60 border-slate-200/60 pt-4 mt-5">
+          <button
+            type="button"
+            onClick={() => setShowSettings((v) => !v)}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full"
+          >
+            <Settings className="w-4 h-4" />
+            <span className="font-medium">File settings</span>
+            {!showSettings && (
+              <span className="text-xs text-slate-400 ml-1 truncate">{settingsSummary}</span>
+            )}
+            <ChevronDown className={`w-4 h-4 ml-auto transition-transform ${showSettings ? 'rotate-180' : ''}`} />
+          </button>
+
+          <AnimatePresence initial={false}>
+            {showSettings && (
+              <motion.div
+                initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                animate={{ height: 'auto', opacity: 1, overflow: 'visible' }}
+                exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                transition={{ duration: 0.2, overflow: { delay: 0.2 } }}
               >
-                <option value="xray">X-ray</option>
-                <option value="scan">Scan</option>
-                <option value="report">Report</option>
-                <option value="other">Other</option>
-              </Select>
-            </div>
-            <div>
-              <label className="text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1.5">
-                <Clock className="w-4 h-4" />
-                Retention
-              </label>
-              <Select
-                value={String(retentionPeriod)}
-                onChange={(e) => setRetentionPeriod(Number(e.target.value))}
-              >
-                {RETENTION_OPTIONS.map((opt) => (
-                  <option key={opt.minutes} value={opt.minutes}>
-                    {opt.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div className="relative" ref={providerRef}>
-              <label className="text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1.5">
-                <HardDrive className="w-4 h-4" />
-                UHRP Storage
-              </label>
-              <button
-                type="button"
-                onClick={() => setProviderOpen((v) => !v)}
-                className="flex h-10 w-full items-center justify-between rounded-md border dark:border-slate-700 border-slate-300 dark:bg-slate-800/50 bg-white px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/40 focus-visible:border-slate-400/40"
-              >
-                <span className="flex items-center gap-1.5 truncate">
-                  {selectedProviders.length === UHRP_PROVIDERS.length ? (
-                    <span className="text-slate-900 dark:text-slate-100">All providers</span>
-                  ) : (
-                    UHRP_PROVIDERS.filter((p) => selectedProviders.includes(p.key)).map((p) => (
-                      <span
-                        key={p.key}
-                        className="inline-flex items-center rounded-full border dark:border-slate-600 border-slate-300 dark:bg-slate-700/50 bg-slate-100 text-slate-700 dark:text-slate-300 px-2 py-0.5 text-xs font-medium"
-                      >
-                        {p.label}
+                <div className="grid grid-cols-[1fr_1fr_1.5fr] gap-4 pt-4">
+                  <div>
+                    <label className="text-[11px] font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                      <Scan className="w-3.5 h-3.5 text-violet-500" />
+                      File Type
+                    </label>
+                    <Select
+                      value={fileType}
+                      onChange={(e) => setFileType(e.target.value as FileMetadata['fileType'])}
+                      className="h-9 text-xs border-violet-500/15 hover:border-violet-500/30 focus-visible:ring-violet-500/30 focus-visible:border-violet-500/30"
+                    >
+                      <option value="xray">X-Ray</option>
+                      <option value="scan">Scan</option>
+                      <option value="report">Report</option>
+                      <option value="other">Other</option>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-violet-500" />
+                      Retention
+                    </label>
+                    <Select
+                      value={String(retentionPeriod)}
+                      onChange={(e) => setRetentionPeriod(Number(e.target.value))}
+                      className="h-9 text-xs border-violet-500/15 hover:border-violet-500/30 focus-visible:ring-violet-500/30 focus-visible:border-violet-500/30"
+                    >
+                      {RETENTION_OPTIONS.map((opt) => (
+                        <option key={opt.minutes} value={opt.minutes}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="relative" ref={providerRef}>
+                    <label className="text-[11px] font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                      <HardDrive className="w-3.5 h-3.5 text-violet-500" />
+                      Storage Provider
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setProviderOpen((v) => !v)}
+                      className="flex h-9 w-full items-center justify-between rounded-md border border-violet-500/15 hover:border-violet-500/30 dark:bg-slate-800/50 bg-white px-3 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/30 focus-visible:border-violet-500/30"
+                    >
+                      <span className="flex items-center gap-1.5 truncate">
+                        {selectedProviders.length === UHRP_PROVIDERS.length ? (
+                          <span className="text-slate-900 dark:text-slate-100">All Providers</span>
+                        ) : (
+                          UHRP_PROVIDERS.filter((p) => selectedProviders.includes(p.key)).map((p) => (
+                            <span
+                              key={p.key}
+                              className="inline-flex items-center rounded-full border border-violet-500/20 bg-violet-500/10 text-violet-600 dark:text-violet-400 px-2 py-0.5 text-xs font-medium"
+                            >
+                              {p.label}
+                            </span>
+                          ))
+                        )}
                       </span>
-                    ))
-                  )}
-                </span>
-                <ChevronDown className={`w-4 h-4 shrink-0 text-slate-400 transition-transform ${providerOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {providerOpen && (
-                <div className="absolute z-20 mt-1 w-full rounded-md border dark:border-slate-700 border-slate-300 dark:bg-slate-800 bg-white shadow-lg py-1">
-                  {UHRP_PROVIDERS.map((p) => {
-                    const checked = selectedProviders.includes(p.key)
-                    const isOnly = checked && selectedProviders.length === 1
-                    return (
-                      <button
-                        key={p.key}
-                        type="button"
-                        disabled={isOnly}
-                        onClick={() =>
-                          setSelectedProviders((prev) =>
-                            checked ? prev.filter((k) => k !== p.key) : [...prev, p.key],
+                      <ChevronDown className={`w-4 h-4 shrink-0 text-slate-400 transition-transform ${providerOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {providerOpen && (
+                      <div className="absolute z-50 mt-1 w-full rounded-md border dark:border-slate-700 border-slate-300 dark:bg-slate-800 bg-white shadow-lg py-1">
+                        {UHRP_PROVIDERS.map((p) => {
+                          const checked = selectedProviders.includes(p.key)
+                          const isOnly = checked && selectedProviders.length === 1
+                          return (
+                            <button
+                              key={p.key}
+                              type="button"
+                              disabled={isOnly}
+                              onClick={() =>
+                                setSelectedProviders((prev) =>
+                                  checked ? prev.filter((k) => k !== p.key) : [...prev, p.key],
+                                )
+                              }
+                              className="flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-slate-100 dark:hover:bg-slate-700/50 disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              <span
+                                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
+                                  checked
+                                    ? 'border-violet-500 bg-violet-500 text-white'
+                                    : 'dark:border-slate-600 border-slate-300'
+                                }`}
+                              >
+                                {checked && <Check className="w-3 h-3" />}
+                              </span>
+                              <span className="flex flex-col items-start min-w-0">
+                                <span className="text-slate-900 dark:text-slate-100">{p.label}</span>
+                                <span className="text-[10px] text-slate-400 truncate w-full">{p.key}</span>
+                              </span>
+                            </button>
                           )
-                        }
-                        className="flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-slate-100 dark:hover:bg-slate-700/50 disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        <span
-                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
-                            checked
-                              ? 'border-violet-500 bg-violet-500 text-white'
-                              : 'dark:border-slate-600 border-slate-300'
-                          }`}
-                        >
-                          {checked && <Check className="w-3 h-3" />}
-                        </span>
-                        <span className="flex flex-col items-start min-w-0">
-                          <span className="text-slate-900 dark:text-slate-100">{p.label}</span>
-                          <span className="text-[10px] text-slate-400 truncate w-full">{p.key}</span>
-                        </span>
-                      </button>
-                    )
-                  })}
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </CardContent>
     </Card>
