@@ -1,11 +1,11 @@
 # P2P Medical Data Sharing
 
-**Zero-Access Architecture** — your files are encrypted before they leave your browser. Reading them back requires your doctor's wallet key and the file's content address. Miss either one and the data stays locked — for everyone, including the platform.
+**Share medical files directly with your doctor.** No portals, no cloud drives, no middlemen. Pick a file, pick your doctor — it's encrypted in your browser and delivered straight to their wallet. Only they can open it.
 
 ## How It Works
 
-1. **Pick a file, pick your doctor** — select a medical file and choose the doctor you want to share it with. Choose which UHRP storage providers to upload to for redundancy. The file is encrypted right in your browser — it never leaves your device unprotected.
-2. **Permanent proof it was shared** — the ciphertext is stored by its content hash across one or more UHRP providers. A blockchain transaction records who shared what, with whom, when, and where it's hosted.
+1. **Pick a file, pick your doctor** — select a medical file and choose the doctor you want to share it with. The file is encrypted right in your browser — it never leaves your device unprotected.
+2. **Permanent proof it was shared** — the ciphertext is stored by its content hash — a unique address that only the recipient can use. A blockchain transaction records who shared what, with whom, and when.
 3. **Doctor verifies and views** — only your doctor's wallet holds the key that pairs with the file's content address. It verifies integrity, decrypts, and records an on-chain attestation — proof the file was received intact.
 
 Every share and every view is logged in an immutable audit trail — no one can access a file without a permanent record.
@@ -86,14 +86,9 @@ npm install
 npm run dev             # starts on :3000
 ```
 
-### Optional Services
+### External Services
 
-The local UHRP storage server is only needed if you want to run fully offline. By default, the frontend uses `go-uhrp-us-1.bsvblockchain.tech` as the primary UHRP provider, with `nanostore.babbage.systems` available as a secondary option. Users can select one or both providers at upload time. MessageBox notifications use BSVA-hosted infrastructure with automatic multi-region fallback (EU, US, AP).
-
-```bash
-# UHRP Storage (fallback)
-cd services/uhrp-storage && npm install && npm run dev   # :3002
-```
+By default, the frontend uses `go-uhrp-us-1.bsvblockchain.tech` as the primary UHRP provider, with `nanostore.babbage.systems` available as a secondary option. Users can select one or both providers at upload time. MessageBox notifications use BSVA-hosted infrastructure with automatic multi-region fallback (EU, US, AP). No local storage services are required.
 
 ## Environment Variables
 
