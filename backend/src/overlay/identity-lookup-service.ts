@@ -43,8 +43,9 @@ export class IdentityLookupService {
       // Exact match — profile fetch
       filter.identityKey = query.identityKey
     } else if (query.name) {
-      // Case-insensitive regex contains match
-      filter.name = { $regex: query.name, $options: 'i' }
+      // Escape regex metacharacters to prevent injection / ReDoS
+      const escaped = query.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      filter.name = { $regex: escaped, $options: 'i' }
       if (query.role) {
         filter.role = query.role as IdentityDoc['role']
       }
