@@ -13,7 +13,7 @@ import { getIdentityKey } from '@/services/wallet'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Lock, Shield, Eye, ShieldCheck, Check, FileImage, FileText, File as FileIcon, HardDrive, Clock } from 'lucide-react'
+import { Lock, Shield, Eye, ShieldCheck, Check, FileImage, FileText, File as FileIcon, HardDrive, Clock, AlertTriangle } from 'lucide-react'
 import { cn, truncateKey, formatFileSize } from '@/lib/utils'
 import { summaryStagger, summaryRow } from '@/lib/motion'
 
@@ -83,6 +83,7 @@ export default function PatientDashboard() {
   const [failedStep, setFailedStep] = useState<UploadStep | null>(null)
   const [result, setResult] = useState<UploadResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [fallbackNotice, setFallbackNotice] = useState<string | null>(null)
   const stepRef = useRef<UploadStep>('idle')
 
   const updateStep = (s: UploadStep) => {
@@ -146,6 +147,7 @@ export default function PatientDashboard() {
     setError(null)
     setResult(null)
     setFailedStep(null)
+    setFallbackNotice(null)
 
     try {
       // 1. Read file as bytes
@@ -170,6 +172,13 @@ export default function PatientDashboard() {
         metadata.selectedProviders,
       )
       const uhrpUrl = storageResult.uhrpUrl
+
+      // 5: Detect fallback — update provider dropdown + show notice
+      if (storageResult.fallbackProvider) {
+        const providerLabel = storageResult.fallbackProvider.includes('nanostore') ? 'Nanostore' : 'BSV Blockchain Tech'
+        setFallbackNotice(`Primary provider unavailable — uploaded via ${providerLabel}`)
+        setMetadata((prev) => ({ ...prev, selectedProviders: [storageResult.fallbackProvider!] }))
+      }
 
       // 5a. Publish UHRP advertisement to public overlay (fire-and-forget)
       if (storageResult.cdnUrl) {
@@ -441,7 +450,15 @@ export default function PatientDashboard() {
       </AnimatePresence>
 
       {step !== 'idle' && (
-        <UploadProgress step={step} error={error} result={result} recipientName={recipientName} failedStep={failedStep} metadata={metadata} senderName={profile?.name || null} senderKey={identityKey} />
+        <>
+          {fallbackNotice && (
+            <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-50 dark:bg-amber-950/20 px-4 py-2.5 text-sm text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              {fallbackNotice}
+            </div>
+          )}
+          <UploadProgress step={step} error={error} result={result} recipientName={recipientName} failedStep={failedStep} metadata={metadata} senderName={profile?.name || null} senderKey={identityKey} />
+        </>
       )}
     </div>
   )

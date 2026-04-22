@@ -6,9 +6,7 @@ import {
 
 function getProviders(): string[] {
   const raw = import.meta.env.VITE_UHRP_PROVIDERS as string | undefined
-  // TODO: re-enable nanostore once Go UHRP validation is complete
-  // if (!raw) return ['https://go-uhrp-us-1.bsvblockchain.tech', 'https://nanostore.babbage.systems']
-  if (!raw) return ['https://go-uhrp-us-1.bsvblockchain.tech']
+  if (!raw) return ['https://nanostore.babbage.systems', 'https://go-uhrp-us-1.bsvblockchain.tech']
   return raw
     .split(',')
     .map((s) => s.trim())
@@ -22,6 +20,7 @@ export interface UhrpUploadResult {
   providerUrls: string[]
   retentionExpiry: number
   confirmedSize: number
+  fallbackProvider?: string // set when a non-selected provider was used
 }
 
 /**
@@ -57,38 +56,33 @@ export async function uploadToUHRP(
   providers?: string[],
 ): Promise<UhrpUploadResult> {
   const wallet = new WalletClient()
-  if (!providers || providers.length === 0) providers = getProviders()
-  console.debug('[UHRP] Uploading to providers:', providers)
+  const selected = providers && providers.length > 0 ? providers : getProviders()
+  console.debug('[UHRP] Uploading to providers:', selected)
 
-  const results = await Promise.allSettled(
-    providers.map(async (storageURL) => {
-      const uploader = new StorageUploader({ wallet, storageURL })
-      return uploader.publishFile({
-        file: { data: Array.from(encryptedData), type: mimeType },
-        retentionPeriod,
-      })
-    }),
-  )
+  // Attempt upload to selected providers
+  let uploadResult = await attemptUpload(wallet, selected, encryptedData, mimeType, retentionPeriod)
 
-  const fulfilled = results.filter(
-    (r): r is PromiseFulfilledResult<Awaited<ReturnType<StorageUploader['publishFile']>>> =>
-      r.status === 'fulfilled',
-  )
-
-  if (fulfilled.length === 0) {
-    const reasons = results
-      .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
-      .map((r) => r.reason?.message || String(r.reason))
-    throw new Error(`All UHRP providers failed: ${reasons.join('; ')}`)
+  // If all selected providers failed, try remaining providers as fallback
+  let fallbackProvider: string | undefined
+  if (!uploadResult) {
+    const allProviders = getProviders()
+    const remaining = allProviders.filter((p) => !selected.includes(p))
+    if (remaining.length > 0) {
+      console.warn('[UHRP] Selected providers failed, trying fallback:', remaining)
+      uploadResult = await attemptUpload(wallet, remaining, encryptedData, mimeType, retentionPeriod)
+      if (uploadResult) {
+        fallbackProvider = uploadResult.providerUrl
+      }
+    }
   }
 
-  const first = fulfilled[0].value
-  const uhrpUrl = first.uhrpURL
+  if (!uploadResult) {
+    throw new Error('All UHRP providers failed (including fallback)')
+  }
+
+  const uhrpUrl = uploadResult.uhrpURL
   const confirmedSize = encryptedData.byteLength
   const retentionExpiry = Date.now() + retentionPeriod * 60 * 1000
-
-  // Collect URLs of providers that succeeded
-  const providerUrls = providers.filter((_, i) => results[i].status === 'fulfilled')
 
   // Resolve CDN URL via findFile (sender has auth, can look up the object identifier)
   const cdnUrl = await resolveCdnUrl(uhrpUrl)
@@ -96,11 +90,35 @@ export async function uploadToUHRP(
   return {
     uhrpUrl,
     cdnUrl,
-    providerCount: fulfilled.length,
-    providerUrls,
+    providerCount: 1,
+    providerUrls: [uploadResult.providerUrl],
     retentionExpiry,
     confirmedSize,
+    fallbackProvider,
   }
+}
+
+/** Try uploading to providers sequentially, return first success or null. */
+async function attemptUpload(
+  wallet: InstanceType<typeof WalletClient>,
+  providers: string[],
+  data: Uint8Array,
+  mimeType: string,
+  retentionPeriod: number,
+): Promise<{ uhrpURL: string; providerUrl: string } | null> {
+  for (const storageURL of providers) {
+    try {
+      const uploader = new StorageUploader({ wallet, storageURL })
+      const result = await uploader.publishFile({
+        file: { data: Array.from(data), type: mimeType },
+        retentionPeriod,
+      })
+      return { uhrpURL: result.uhrpURL, providerUrl: storageURL }
+    } catch (err) {
+      console.warn(`[UHRP] Upload to ${storageURL} failed:`, err)
+    }
+  }
+  return null
 }
 
 /**

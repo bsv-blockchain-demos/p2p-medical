@@ -10,8 +10,8 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'application/pdf']
 
 const UHRP_PROVIDERS = [
-  { key: 'https://go-uhrp-us-1.bsvblockchain.tech', label: 'BSV Blockchain Tech' },
   { key: 'https://nanostore.babbage.systems', label: 'Nanostore' },
+  { key: 'https://go-uhrp-us-1.bsvblockchain.tech', label: 'BSV Blockchain Tech' },
 ] as const
 
 export const RETENTION_OPTIONS = [
@@ -44,16 +44,27 @@ function getFileIcon(file: File) {
   return FileIcon
 }
 
-export default function ImageUpload({ onFileSelect, file }: ImageUploadProps) {
+export default function ImageUpload({ onFileSelect, file, metadata }: ImageUploadProps) {
   const fileRef = useRef<HTMLInputElement>(null)
   const providerRef = useRef<HTMLDivElement>(null)
   const [dragOver, setDragOver] = useState(false)
   const [fileType, setFileType] = useState<FileMetadata['fileType']>('xray')
-  const [bodyPart, setBodyPart] = useState('')
+  const [bodyPart] = useState('')
   const [retentionPeriod, setRetentionPeriod] = useState(10080) // 1 Week default
   const [selectedProviders, setSelectedProviders] = useState<string[]>([UHRP_PROVIDERS[0].key])
   const [providerOpen, setProviderOpen] = useState(false)
   const [showSettings, setShowSettings] = useState(true)
+
+  // Sync selectedProviders from parent (e.g. after fallback updates metadata)
+  useEffect(() => {
+    if (metadata.selectedProviders && metadata.selectedProviders.length > 0) {
+      setSelectedProviders((prev) => {
+        const next = metadata.selectedProviders!
+        if (prev.length === next.length && prev.every((p, i) => p === next[i])) return prev
+        return next
+      })
+    }
+  }, [metadata.selectedProviders])
 
   // Image thumbnail preview
   const thumbnailUrl = useMemo(() => {

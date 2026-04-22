@@ -65,7 +65,6 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
   const [errorAt, setErrorAt] = useState<ViewStep | null>(null)
   const [hashMatch, setHashMatch] = useState<boolean | null>(null)
   const [encryptedData, setEncryptedData] = useState<Uint8Array | null>(null)
-  const [decryptedAt, setDecryptedAt] = useState<number | null>(null)
   const [senderName, setSenderName] = useState<string | null>(null)
   const [recipientName, setRecipientName] = useState<string | null>(null)
   const [viewHistory, setViewHistory] = useState<ViewEvent[]>([])
@@ -160,7 +159,6 @@ export default function ImageViewer({ token, onBack, backLabel = 'Back to Inbox'
       const mimeType = token.metadata.mimeType || 'image/jpeg'
       const blob = new Blob([plaintext.buffer as ArrayBuffer], { type: mimeType })
       setImageUrl(URL.createObjectURL(blob))
-      setDecryptedAt(Date.now())
       setStep('done')
       // Log view event (fire-and-forget)
       recordView(token.txid, token.vout, token.recipientKey)
