@@ -27,7 +27,7 @@ export default function RegisterProfile() {
   const displayError = localError || error
 
   return (
-    <div className="min-h-screen bg-background relative flex items-center justify-center p-6">
+    <div className="min-h-screen bg-background relative flex items-center justify-center p-4 sm:p-6">
       <div className="fixed inset-0 bg-grid-atmospheric pointer-events-none" />
       <div className="fixed top-0 right-0 w-[400px] h-[400px] bg-gradient-to-bl from-violet-500/[0.04] to-transparent rounded-full blur-3xl pointer-events-none" />
 
@@ -37,7 +37,7 @@ export default function RegisterProfile() {
         animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
         transition={{ duration: 0.5, ease }}
       >
-        <div className="dark:bg-slate-900/60 bg-white/80 backdrop-blur-xl border dark:border-slate-800/60 border-slate-200/60 rounded-2xl p-8 shadow-2xl">
+        <div className="dark:bg-slate-900/60 bg-white/80 backdrop-blur-xl border dark:border-slate-800/60 border-slate-200/60 rounded-2xl p-6 sm:p-8 shadow-2xl">
           {/* Header */}
           <div className="flex flex-col items-center gap-3 mb-8">
             <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-violet-sm">

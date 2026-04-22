@@ -189,7 +189,7 @@ export default function ImageUpload({ onFileSelect, file, metadata }: ImageUploa
           transition={{ duration: 0.3 }}
         >
           <div
-            className={`rounded-[11px] p-10 text-center cursor-pointer transition-colors duration-200 ${
+            className={`rounded-[11px] p-6 sm:p-10 text-center cursor-pointer transition-colors duration-200 ${
               file
                 ? 'bg-violet-50 dark:bg-violet-950/20'
                 : 'bg-white dark:bg-slate-900'
@@ -273,7 +273,7 @@ export default function ImageUpload({ onFileSelect, file, metadata }: ImageUploa
                 exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
                 transition={{ duration: 0.2, overflow: { delay: 0.2 } }}
               >
-                <div className="grid grid-cols-[1fr_1fr_1.5fr] gap-4 pt-4">
+                <div className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_1.5fr] gap-3 sm:gap-4 pt-4">
                   <div>
                     <label className="text-[11px] font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
                       <Scan className="w-3.5 h-3.5 text-violet-500" />
@@ -307,7 +307,7 @@ export default function ImageUpload({ onFileSelect, file, metadata }: ImageUploa
                       ))}
                     </Select>
                   </div>
-                  <div className="relative" ref={providerRef}>
+                  <div className="relative col-span-2 sm:col-span-1" ref={providerRef}>
                     <label className="text-[11px] font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
                       <HardDrive className="w-3.5 h-3.5 text-violet-500" />
                       Storage Provider

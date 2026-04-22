@@ -141,7 +141,7 @@ export default function RecipientSearch({ onSelect, selectedKey, selectedName }:
             </div>
           </>
         ) : (
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1" ref={dropdownRef}>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
@@ -207,7 +207,7 @@ export default function RecipientSearch({ onSelect, selectedKey, selectedName }:
 
             <span className="self-center text-sm text-muted-foreground">OR</span>
 
-            <div className="flex gap-2 flex-1">
+            <div className="flex gap-2 flex-1 min-w-0">
               <Input
                 placeholder="Paste public key"
                 value={pasteKey}

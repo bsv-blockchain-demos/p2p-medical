@@ -274,7 +274,7 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-grid-atmospheric" />
         <div className="absolute inset-0 noise" />
 
-        <div className="relative max-w-6xl mx-auto px-6 pt-24 pb-32 text-center">
+        <div className="relative max-w-6xl mx-auto px-5 sm:px-6 pt-16 sm:pt-24 pb-20 sm:pb-32 text-center">
           <motion.div
             className="shimmer inline-flex items-center gap-2 bg-violet-500/5 border border-violet-500/20 rounded-full px-4 py-1.5 mb-8"
             variants={fadeUp}
@@ -322,19 +322,19 @@ export default function LandingPage() {
 
           {/* Trust indicators */}
           <motion.div
-            className="mt-16 flex items-center justify-center gap-8 text-sm dark:text-slate-500 text-slate-400"
+            className="mt-16 flex items-center justify-center flex-wrap gap-x-4 gap-y-3 text-sm dark:text-slate-500 text-slate-400"
             variants={fadeIn}
           >
             <div className="flex items-center gap-2">
               <Lock className="w-4 h-4" />
               <span>End-to-end encrypted</span>
             </div>
-            <div className="w-1 h-1 dark:bg-slate-700 bg-slate-300 rounded-full" />
+            <div className="w-1 h-1 dark:bg-slate-700 bg-slate-300 rounded-full hidden sm:block" />
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4" />
               <span>Blockchain-verified</span>
             </div>
-            <div className="w-1 h-1 dark:bg-slate-700 bg-slate-300 rounded-full" />
+            <div className="w-1 h-1 dark:bg-slate-700 bg-slate-300 rounded-full hidden sm:block" />
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               <span>Direct to doctor</span>
@@ -407,7 +407,7 @@ export default function LandingPage() {
                 {/* Header gradient bar */}
                 <div className="h-1 bg-gradient-to-r from-violet-500 to-indigo-500" />
 
-                <div className="p-8">
+                <div className="p-5 sm:p-8">
                   <div className="flex items-start justify-between mb-6">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
@@ -564,7 +564,7 @@ export default function LandingPage() {
             whileInView="animate"
             viewport={{ once: true }}
             variants={stagger}
-            className="relative overflow-hidden bg-gradient-to-br dark:from-slate-900 dark:via-slate-900 dark:to-violet-950/50 from-slate-50 via-white to-violet-50 rounded-3xl border dark:border-slate-800/60 border-slate-200/60 p-12 md:p-16 text-center"
+            className="relative overflow-hidden bg-gradient-to-br dark:from-slate-900 dark:via-slate-900 dark:to-violet-950/50 from-slate-50 via-white to-violet-50 rounded-3xl border dark:border-slate-800/60 border-slate-200/60 p-8 sm:p-12 md:p-16 text-center"
           >
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(139,92,246,0.12),transparent_60%)]" />
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(139,92,246,0.06),transparent_60%)]" />

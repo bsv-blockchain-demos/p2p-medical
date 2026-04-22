@@ -200,7 +200,7 @@ export default function DoctorInbox() {
                       </div>
 
                       {/* Bottom row: txid + view button */}
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
                         <span className="inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground break-all">
                           Txid:{' '}
                           <a

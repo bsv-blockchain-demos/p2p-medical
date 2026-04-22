@@ -22,7 +22,7 @@ function Tip({ title, points }: { title: string; points: string[] }) {
   return (
     <span className="relative group/tip inline-flex">
       <Info className="w-3 h-3 text-slate-400 dark:text-slate-500 cursor-help shrink-0" />
-      <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-72 p-3 rounded-lg dark:bg-slate-800 bg-slate-900 text-white shadow-lg opacity-0 pointer-events-none group-hover/tip:opacity-100 group-hover/tip:pointer-events-auto transition-opacity z-10">
+      <span className="absolute right-0 top-full mt-1 sm:right-auto sm:top-1/2 sm:-translate-y-1/2 sm:left-full sm:mt-0 sm:ml-2 w-64 sm:w-72 p-3 rounded-lg dark:bg-slate-800 bg-slate-900 text-white shadow-lg opacity-0 pointer-events-none group-hover/tip:opacity-100 group-hover/tip:pointer-events-auto transition-opacity z-10">
         <strong className="block text-xs mb-1.5">{title}</strong>
         <ul className="space-y-1">
           {points.map((pt, i) => (

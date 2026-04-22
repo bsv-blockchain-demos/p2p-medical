@@ -246,7 +246,7 @@ export default function AuditTimeline() {
       <Card className="hover:translate-y-0 hover:shadow-none">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed text-xs">
+            <table className="w-full table-fixed text-xs min-w-[700px]">
               <thead>
                 <tr className="border-b dark:border-slate-800 border-slate-200">
                   <th className="w-[13%] px-3 py-2.5 text-left text-[10px] font-semibold tracking-wider uppercase text-muted-foreground">UHRP</th>
