@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { WalletClient } from '@bsv/sdk'
-import { connectWallet, isWalletConnected, getIdentityKey, disconnectWallet } from '@/services/wallet'
+import { connectWallet, getIdentityKey, disconnectWallet, hadPriorSession, tryReconnect } from '@/services/wallet'
 import { fetchProfile, registerIdentity, deleteProfile, type UserProfile } from '@/services/identity'
 
 export type Role = 'patient' | 'doctor'
@@ -10,6 +10,7 @@ interface WalletState {
   identityKey: string | null
   connected: boolean
   connecting: boolean
+  initializing: boolean
   registered: boolean
   registering: boolean
   profile: UserProfile | null
@@ -26,6 +27,7 @@ const WalletContext = createContext<WalletState>({
   identityKey: null,
   connected: false,
   connecting: false,
+  initializing: true,
   registered: false,
   registering: false,
   profile: null,
@@ -42,6 +44,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [identityKey, setIdentityKey] = useState<string | null>(null)
   const [connected, setConnected] = useState(false)
   const [connecting, setConnecting] = useState(false)
+  const [initializing, setInitializing] = useState(true)
   const [registered, setRegistered] = useState(false)
   const [registering, setRegistering] = useState(false)
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -109,16 +112,25 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    isWalletConnected().then((ok) => {
-      if (ok) connect()
+    if (!hadPriorSession()) {
+      setInitializing(false)
+      return
+    }
+    tryReconnect().then((ok) => {
+      if (ok) {
+        connect().finally(() => setInitializing(false))
+      } else {
+        setInitializing(false)
+      }
     })
-  }, [connect])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const role: Role = profile?.role || 'patient'
 
   return (
     <WalletContext.Provider
-      value={{ wallet, identityKey, connected, connecting, registered, registering, profile, role, connect, register, resetProfile, disconnect, error }}
+      value={{ wallet, identityKey, connected, connecting, initializing, registered, registering, profile, role, connect, register, resetProfile, disconnect, error }}
     >
       {children}
     </WalletContext.Provider>

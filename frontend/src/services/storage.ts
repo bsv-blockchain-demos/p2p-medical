@@ -1,6 +1,6 @@
 import {
   WalletClient, StorageUploader, StorageDownloader, StorageUtils,
-  PushDrop, Transaction, TopicBroadcaster, Utils,
+  PushDrop, Transaction, TopicBroadcaster, Utils, AuthFetch,
   type SecurityLevel,
 } from '@bsv/sdk'
 
@@ -106,14 +106,63 @@ async function attemptUpload(
   mimeType: string,
   retentionPeriod: number,
 ): Promise<{ uhrpURL: string; providerUrl: string } | null> {
+  const authFetch = new AuthFetch(wallet)
+
   for (const storageURL of providers) {
     try {
-      const uploader = new StorageUploader({ wallet, storageURL })
-      const result = await uploader.publishFile({
-        file: { data: Array.from(data), type: mimeType },
-        retentionPeriod,
+      // Step 1: POST /upload to get presigned URL (replaces SDK's opaque getUploadInfo)
+      const uploadInfoUrl = `${storageURL}/upload`
+      const infoResponse = await authFetch.fetch(uploadInfoUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileSize: data.byteLength, retentionPeriod }),
       })
-      return { uhrpURL: result.uhrpURL, providerUrl: storageURL }
+
+      if (!infoResponse.ok) {
+        // This is the whole point: capture the error body the SDK discards
+        let errorBody = ''
+        try { errorBody = await infoResponse.text() } catch { /* ignore */ }
+        console.error(
+          `[UHRP] ${storageURL} POST /upload returned HTTP ${infoResponse.status}`,
+          '\n--- Response body ---\n',
+          errorBody,
+          '\n--- End body ---',
+        )
+        throw new Error(
+          `Upload info request failed: HTTP ${infoResponse.status} — ${errorBody.slice(0, 500)}`,
+        )
+      }
+
+      const infoData = await infoResponse.json() as {
+        status: string
+        uploadURL: string
+        amount?: number
+        requiredHeaders: Record<string, string>
+      }
+      if (infoData.status === 'error') {
+        console.error('[UHRP] Upload route returned error status:', infoData)
+        throw new Error('Upload route returned an error.')
+      }
+
+      // Step 2: PUT raw bytes to presigned URL
+      const putResponse = await fetch(infoData.uploadURL, {
+        method: 'PUT',
+        body: data as BodyInit,
+        headers: {
+          ...infoData.requiredHeaders,
+          'Content-Type': mimeType,
+        },
+      })
+      if (!putResponse.ok) {
+        let putBody = ''
+        try { putBody = await putResponse.text() } catch { /* ignore */ }
+        console.error(`[UHRP] PUT to presigned URL failed: HTTP ${putResponse.status}`, putBody)
+        throw new Error(`File upload failed: HTTP ${putResponse.status}`)
+      }
+
+      // Step 3: Compute UHRP URL from file hash
+      const uhrpURL = 'uhrp://' + StorageUtils.getURLForFile(data)
+      return { uhrpURL, providerUrl: storageURL }
     } catch (err) {
       console.warn(`[UHRP] Upload to ${storageURL} failed:`, err)
     }

@@ -8,7 +8,14 @@ import DoctorInbox from '@/components/app/DoctorInbox'
 import AuditTimeline from '@/components/app/AuditTimeline'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { connected, registered } = useWallet()
+  const { connected, registered, initializing } = useWallet()
+  if (initializing) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      </div>
+    )
+  }
   if (!connected) return <Navigate to="/" replace />
   if (!registered) return <RegisterProfile />
   return <>{children}</>
