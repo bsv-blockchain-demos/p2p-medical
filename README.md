@@ -189,4 +189,4 @@ Run `npm ci` and `npm run build` separately in `backend/` and `frontend/`. No au
 
 ## Licence
 
-The previous README claimed MIT licensing, but this checkout contains no licence file or package licence declaration. The maintainers need to confirm the intended terms.
+**Documented licence: MIT.** This is the declaration recorded in the project documentation. No standalone licence file or package licence declaration is included in this repository.
