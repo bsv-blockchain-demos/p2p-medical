@@ -1,14 +1,16 @@
 # P2P Medical Data Sharing
 
-**Share medical files directly with your doctor.** No portals, no cloud drives, no middlemen. Pick a file, pick your doctor — it's encrypted in your browser and delivered straight to their wallet. Only they can open it.
+An encrypted file-sharing demonstration using BSV wallets, content-addressed storage and a MongoDB-backed audit timeline. A sender encrypts a file through their wallet, uploads the ciphertext to a storage provider, and shares its metadata with the recipient.
+
+[Hosted demo](https://p2p-medical.bsvblockchain.tech). Use synthetic files when evaluating the application.
 
 ## How It Works
 
-1. **Pick a file, pick your doctor** — select a medical file and choose the doctor you want to share it with. The file is encrypted right in your browser — it never leaves your device unprotected.
-2. **Permanent proof it was shared** — the ciphertext is stored by its content hash — a unique address that only the recipient can use. A blockchain transaction records who shared what, with whom, and when.
-3. **Doctor verifies and views** — only your doctor's wallet holds the key that pairs with the file's content address. It verifies integrity, decrypts, and records an on-chain attestation — proof the file was received intact.
+1. **Encrypt and upload:** the sender selects a file and recipient. The wallet encrypts it using the recipient's identity key, then the app uploads the ciphertext to selected UHRP providers.
+2. **Share a reference:** the app creates a PushDrop transaction, sends token metadata to the backend, and attempts a MessageBox notification. The content hash identifies and checks the ciphertext; it is not an access-control credential.
+3. **Verify and decrypt:** the recipient downloads the ciphertext, checks its SHA-256 hash, and asks their wallet to decrypt it using the sender's identity key and the shared key identifier.
 
-Every share and every view is logged in an immutable audit trail — no one can access a file without a permanent record.
+View and access events are written to MongoDB. The viewer records a view after decryption without waiting for it to succeed, so the application does not guarantee that every view is recorded or that view events are on-chain. The REST routes also accept identity keys from request bodies without wallet signature authentication. These are material limitations of the current demonstration.
 
 ## Architecture
 
@@ -33,24 +35,26 @@ Every share and every view is logged in an immutable audit trail — no one can 
 | Layer | Tech | Purpose |
 |-------|------|---------|
 | Frontend | Vite, React 18, TypeScript, Tailwind, Framer Motion | UI, in-browser encryption, wallet interaction, provider selection |
-| Backend | Express, MongoDB, `@bsv/overlay` | Token storage, audit events, overlay engine (SHIP/SLAP) |
+| Backend | Express and MongoDB | Token storage, audit events and custom `/submit` and `/lookup` handlers |
 | Blockchain | `@bsv/sdk`, PushDrop tokens, BRC-100 wallet | Identity, on-chain proof, key derivation, encryption |
 | Storage | UHRP — Go UHRP (primary), Nanostore (secondary) | Multi-provider content-addressed encrypted file hosting |
 | Messaging | MessageBox (BSVA-hosted, multi-region) | Real-time notifications to doctor's wallet |
 
 ## Prerequisites
 
-- **Node.js** >= 20
+- **Node.js** 22
 - **npm** (or your preferred package manager)
 - **MongoDB** — local instance or Docker
 - **BSV Wallet** — a BRC-100 compatible wallet for connecting from the browser. Download [BSV Desktop](https://desktop.bsvb.tech) or [BSV Browser](https://mobile.bsvb.tech) for mobile.
 
 ## Quick Start (Docker)
 
-The easiest way to run everything:
+From a new checkout:
 
 ```bash
-docker-compose up
+git clone https://github.com/bsv-blockchain-demos/p2p-medical.git
+cd p2p-medical
+docker compose up --build
 ```
 
 This starts all services:
@@ -99,7 +103,7 @@ By default, the frontend uses `go-uhrp-us-1.bsvblockchain.tech` as the primary U
 | `PORT` | `3001` | Server port |
 | `MONGO_URL` | `mongodb://localhost:27017` | MongoDB connection string |
 | `DB_NAME` | `p2p_medical` | Database name |
-| `BHS_URL` | `http://localhost:8080` | Block Headers Service URL |
+| `BHS_URL` | `http://localhost:8080` | Present in the template and Compose configuration; the current backend does not read it. |
 | `ARC_URL` | `https://api.taal.com/arc` | ARC miner endpoint for transaction broadcast |
 | `ARC_API_KEY` | *(empty)* | TAAL ARC authorization key (optional) |
 
@@ -126,9 +130,9 @@ By default, the frontend uses `go-uhrp-us-1.bsvblockchain.tech` as the primary U
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/api/tokens/share` | Share a token + log upload audit event |
-| `POST` | `/api/tokens/access` | Mark as decrypted + log access audit event |
-| `POST` | `/api/tokens/view` | Record view + log view audit event |
-| `PATCH` | `/api/tokens/:txid/cdn-url` | Backfill CDN URL for existing tokens (sender only) |
+| `POST` | `/api/tokens/access` | Mark as decrypted and record a MongoDB access event |
+| `POST` | `/api/tokens/view` | Record a MongoDB view event |
+| `PATCH` | `/api/tokens/:txid/cdn-url` | Backfill a CDN URL using a supplied sender key; no signature check is performed |
 
 ### Broadcast
 
@@ -179,6 +183,10 @@ backend/src/
     └── lookup-service.ts        # Query resolution
 ```
 
-## License
+## Build checks
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+Run `npm ci` and `npm run build` separately in `backend/` and `frontend/`. No automated test script is provided in either package. A complete functional check needs two wallet identities, MongoDB, storage services and funds for the wallet transactions. The Compose configuration uses mainnet ARC infrastructure.
+
+## Licence
+
+The previous README claimed MIT licensing, but this checkout contains no licence file or package licence declaration. The maintainers need to confirm the intended terms.
